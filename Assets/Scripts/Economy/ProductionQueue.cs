@@ -1,29 +1,27 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using static ResourceManager;
+
 
 public class ProductionQueue : MonoBehaviour
 {
     [System.Serializable]
     public class ProductionItem
     {
+        public Sprite iconPrefab;
         public GameObject unitPrefab;
         public float productionTime;
-        public ResourceCost[] costs;
+        public List<ResourcePack> costs = new();
     }
 
-    [System.Serializable]
-    public class ResourceCost
-    {
-        public ResourceNode.ResourceType type;
-        public int amount;
-    }
-
+    [SerializeField] private ProductionBuilding building;
     [SerializeField] private ProductionItem[] productionItems;
-    [SerializeField] private Transform spawnPoint;
     [SerializeField] private int maxQueueSize = 5;
 
-    private Queue<ProductionItem> queue = new Queue<ProductionItem>();
+    private Queue<ProductionItem> queue = new();
+    public event Action OnQueueChanged;
     private bool isProducing = false;
 
     public bool CanAddToQueue()
@@ -33,12 +31,14 @@ public class ProductionQueue : MonoBehaviour
 
     public bool TryAddToQueue(int itemIndex)
     {
+        if (!building.IsBuilt()) return false;
         if (itemIndex < 0 || itemIndex >= productionItems.Length) return false;
         if (!CanAddToQueue()) return false;
 
         ProductionItem item = productionItems[itemIndex];
 
         // 检查资源是否足够
+        Debug.Log(item.costs);
         foreach (var cost in item.costs)
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))
@@ -58,18 +58,8 @@ public class ProductionQueue : MonoBehaviour
             StartCoroutine(ProductionCoroutine());
         }
 
+        OnQueueChanged?.Invoke();
         return true;
-    }
-
-    public void CompleteCurrentItem()
-    {
-        while (queue.Count > 0)
-        {
-            ProductionItem currentItem = queue.Peek();
-            Instantiate(currentItem.unitPrefab, spawnPoint.position, spawnPoint.rotation);
-            queue.Dequeue();
-        }
-        Debug.Log("Current item complete");
     }
 
     private IEnumerator ProductionCoroutine()
@@ -80,16 +70,18 @@ public class ProductionQueue : MonoBehaviour
         {
             ProductionItem currentItem = queue.Peek();
 
-            // 这里可以触发生产开始事件
-            Debug.Log($"Started producing: {currentItem.unitPrefab.name}");
-
             yield return new WaitForSeconds(currentItem.productionTime);
 
-            // 生产完成
-            Instantiate(currentItem.unitPrefab, spawnPoint.position, spawnPoint.rotation);
-            queue.Dequeue();
+            GameObject newUnit = Instantiate(currentItem.unitPrefab, building.SpawnPoint.position, building.SpawnPoint.rotation);
 
-            Debug.Log($"Completed producing: {currentItem.unitPrefab.name}");
+            // Move to rally point if available
+            if (building.RallyPoint != null && newUnit.TryGetComponent<UnitBase>(out var unitBase))
+            {
+                unitBase.ReceiveCommand(building.RallyPoint.position, null);
+            }
+
+            queue.Dequeue();
+            OnQueueChanged?.Invoke();
         }
 
         isProducing = false;
@@ -103,6 +95,16 @@ public class ProductionQueue : MonoBehaviour
     public int GetQueueMax()
     {
         return maxQueueSize;
+    }
+
+    public Queue<ProductionItem> GetQueueItems()
+    {
+        return queue;
+    }
+
+    public bool IsProducing()
+    {
+        return isProducing;
     }
 
     public ProductionItem[] GetAvailableItems()

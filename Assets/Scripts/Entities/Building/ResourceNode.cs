@@ -1,11 +1,12 @@
 using UnityEngine;
+using static ResourceNode;
 
 public class ResourceNode : MonoBehaviour, ISelectable
 {
     [Header("Resource Settings")]
-    [SerializeField] private ResourceType resourceType = ResourceType.Gold;
+    [SerializeField] private ResourceManager.ResourceType resourceType 
+        = ResourceManager.ResourceType.LineR;
     [SerializeField] private int resourceAmount = 100;
-    [SerializeField] private float collectionRadius = 2f;
 
     // Selection visual
     private GameObject selectionIndicator;
@@ -14,7 +15,6 @@ public class ResourceNode : MonoBehaviour, ISelectable
     private readonly float indicatorHeightOffset = 0.1f;
 
     protected bool isSelected = false;
-    public enum ResourceType { Gold, Wood, Food }
 
     protected virtual void Awake()
     {
@@ -49,11 +49,10 @@ public class ResourceNode : MonoBehaviour, ISelectable
 
     public Vector3 GetCollectionPoint()
     {
-        Vector2 randomCircle = Random.onUnitSphere * collectionRadius;
-        return transform.position + new Vector3(randomCircle.x, 0, randomCircle.y);
+        return transform.position;
     }
 
-    public int Collect(int amount)
+    public ResourceManager.ResourcePack Collect(int amount)
     {
         int collected = Mathf.Min(amount, resourceAmount);
         resourceAmount -= collected;
@@ -63,7 +62,12 @@ public class ResourceNode : MonoBehaviour, ISelectable
             DepleteNode();
         }
 
-        return collected;
+        ResourceManager.ResourcePack pack = new()
+        {
+            type = resourceType,
+            amount = collected
+        };
+        return pack;
     }
 
     private void DepleteNode()
@@ -72,19 +76,11 @@ public class ResourceNode : MonoBehaviour, ISelectable
         Destroy(gameObject);
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, collectionRadius);
-    }
-
     private void CreateCircleIndicator()
     {
-        // 创建空游戏对象作为指示器父对象
         selectionIndicator = new GameObject("SelectionIndicator");
         selectionIndicator.transform.SetParent(transform);
 
-        // 计算位置（单位底部上方0.1f）
         var renderer = GetComponent<Renderer>();
         float bottomY = renderer != null ?
             (transform.position.y - renderer.bounds.extents.y) :
@@ -92,7 +88,6 @@ public class ResourceNode : MonoBehaviour, ISelectable
 
         selectionIndicator.transform.localPosition = new Vector3(0, bottomY - transform.position.y + indicatorHeightOffset, 0);
 
-        // 创建圆形
         int segments = 32;
         LineRenderer lineRenderer = selectionIndicator.AddComponent<LineRenderer>();
         lineRenderer.useWorldSpace = false;
@@ -101,7 +96,6 @@ public class ResourceNode : MonoBehaviour, ISelectable
         lineRenderer.positionCount = segments + 1;
         lineRenderer.material = new Material(Shader.Find("Unlit/Color")) { color = selectionColor };
 
-        // 设置圆形顶点
         float angle = 0f;
         for (int i = 0; i < segments + 1; i++)
         {

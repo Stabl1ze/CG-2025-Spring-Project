@@ -1,13 +1,28 @@
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Outline))]
-public class UnitBase : MonoBehaviour, ISelectable, ICommandable
+public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 {
     [Header("Unit Settings")]
-    [SerializeField] protected float moveSpeed = 5f;
-    [SerializeField] protected float rotationSpeed = 10f;
+    [SerializeField] protected float HP = 100f;
+    [SerializeField] protected float maxHP = 100f;
+    [SerializeField] protected bool isEnemy = false;
 
+    [Header("Health Bar Settings")]
+    [SerializeField] private GameObject healthBarPrefab;
+    [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0);
+
+    // 血条实例
+    private GameObject healthBarInstance;
+    private Slider healthBarSlider;
+    private static Canvas uiCanvas; // 统一的UI画布
+
+    // Move speed settings
+    protected float moveSpeed = 5f;
+    protected float rotationSpeed = 10f;
+    
     // Selection visual
     private GameObject selectionIndicator;
     private Color selectionColor = Color.green;
@@ -15,14 +30,31 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable
     private readonly float indicatorHeightOffset = 0.1f;
 
     protected bool isSelected = false;
-    protected Vector3 targetPosition;
     protected bool isMoving = false;
+    protected Vector3 targetPosition;
+
+    public bool IsEnemy => isEnemy;
 
     protected virtual void Awake()
     {
-        // Set select indicator
+        // 初始化UI画布
+        if (uiCanvas == null)
+        {
+            uiCanvas = GameObject.FindGameObjectWithTag("MainCanvas").GetComponent<Canvas>();
+            if (uiCanvas == null)
+            {
+                Debug.LogError("MainCanvas not found! Make sure there is a Canvas with tag 'MainCanvas' in the scene.");
+            }
+        }
+
+        // 创建血条
+        CreateHealthBar();
+
+        // 设置选择指示器
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
+
+        gameObject.tag = isEnemy ? "Enemy" : "Ally";
     }
 
     protected virtual void Update()
@@ -30,6 +62,16 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable
         if (isMoving)
         {
             MoveToTarget();
+        }
+        UpdateHealthBarPosition();
+    }
+
+    protected virtual void OnDestroy()
+    {
+        // 销毁建筑时同步销毁血条实例
+        if (healthBarInstance != null)
+        {
+            Destroy(healthBarInstance);
         }
     }
 
@@ -78,10 +120,84 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable
     #region ICommandable Implementation
     public virtual void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
+        if (isEnemy) return; // Enemy check
         isMoving = true;
         this.targetPosition = targetPosition;
     }
     #endregion
+
+    #region IDamageable Implementation
+    public virtual void TakeDamage(float damage)
+    {
+        if (HP >= maxHP)
+            HP = maxHP;
+
+        HP -= damage;
+        UpdateHealthBar();
+        ShowHealthBar(true); // 受伤时显示血条
+
+        if (HP <= 0f)
+            Destroy(gameObject);
+    }
+
+    public void ShowHealthBar(bool show)
+    {
+        if (healthBarSlider != null)
+        {
+            healthBarSlider.gameObject.SetActive(show);
+        }
+    }
+
+    public void UpdateHealthBar()
+    {
+        if (healthBarSlider != null)
+        {
+            healthBarSlider.value = HP;
+        }
+    }
+
+    public float GetCurrentHP()
+    {
+        return HP;
+    }
+
+    public float GetMaxHP()
+    {
+        return maxHP;
+    }
+    #endregion
+
+    // 创建血条实例
+    private void CreateHealthBar()
+    {
+        if (healthBarPrefab == null || uiCanvas == null) return;
+
+        healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
+
+        if (healthBarSlider != null)
+        {
+            healthBarSlider.maxValue = maxHP;
+            healthBarSlider.value = HP >= maxHP ? maxHP : HP;
+            healthBarInstance.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError("HealthBarPrefab is missing Slider component!");
+        }
+    }
+
+    private void UpdateHealthBarPosition()
+    {
+        if (healthBarInstance == null || healthBarSlider == null) return;
+
+        // 将世界坐标转换为屏幕坐标
+        Vector3 screenPosition = Camera.main.WorldToScreenPoint(transform.position);
+
+        // 应用偏移量
+        RectTransform rectTransform = healthBarSlider.GetComponent<RectTransform>();
+        rectTransform.position = screenPosition + healthBarOffset;
+    }
 
     // 在Scene视图中绘制Gizmos
     protected virtual void OnDrawGizmosSelected()
