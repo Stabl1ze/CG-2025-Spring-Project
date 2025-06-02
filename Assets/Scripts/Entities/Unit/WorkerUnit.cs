@@ -9,17 +9,34 @@ public class WorkerUnit : UnitBase
     [SerializeField] private int collectionAbility = 1;
     [SerializeField] private float fetchRange = 1f;
 
+    [Header("Visual Effects")]
+    [SerializeField] private MeshRenderer bodyRenderer;
+
+    private Color originalColor;
+
     private bool isCollecting = false;
     private bool isDelivering = false;
-    private int currentResources = 0;
+    private int currentAmount = 0;
+    private ResourceManager.ResourceType currentType = ResourceManager.ResourceType.LineR;
+
     private ResourceNode currentResourceNode;
     private MainBase targetBase;
     private bool shouldContinueCollecting = false;
 
+    protected override void Awake()
+    {
+        base.Awake();
+        if (bodyRenderer != null)
+            originalColor = bodyRenderer.material.color;
+    }
+
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
+        if (isEnemy) return; // Enemy check
+
         // Reset when new command is received
         CancelCollection();
+        isDelivering = false;
 
         if (targetObject != null && targetObject.TryGetComponent<ResourceNode>(out ResourceNode node))
         {
@@ -36,6 +53,7 @@ public class WorkerUnit : UnitBase
             targetBase = mainBase;
             this.targetPosition = mainBase.transform.position;
             isMoving = true;
+            isDelivering = true;
         }
         else
         {
@@ -84,7 +102,7 @@ public class WorkerUnit : UnitBase
     private void CollectResource()
     {
         // Click on resource nodes when holding resource
-        if (currentResources >= resourceCarryCapacity)
+        if (currentAmount >= resourceCarryCapacity)
         {
             CancelCollection();
             ReturnToBase();
@@ -92,10 +110,11 @@ public class WorkerUnit : UnitBase
         }
 
         // Collect 
-        int collected = currentResourceNode.Collect(collectionAbility);
-        if (collected > 0)
+        ResourceManager.ResourcePack pack = currentResourceNode.Collect(collectionAbility);
+        if (pack.amount > 0)
         {
-            currentResources += collected;
+            currentAmount += pack.amount;
+            currentType = pack.type;
         }
         else
         {
@@ -103,17 +122,40 @@ public class WorkerUnit : UnitBase
             ReturnToBase();
         }
 
-        if (currentResourceNode == null || currentResources >= resourceCarryCapacity)
+        if (currentResourceNode == null || currentAmount >= resourceCarryCapacity)
         {
             CancelCollection();
             ReturnToBase();
         }
+
+        UpdateVisuals();
     }
 
     private void CancelCollection()
     {
         isCollecting = false;
         CancelInvoke(nameof(CollectResource));
+    }
+    #endregion
+
+    #region Easy AI For Repeatly Collection
+    public int DeliverResources()
+    {
+        int delivered = currentAmount;
+        ResourceManager.Instance.AddResources(currentType, delivered);
+
+        // Reset collect status
+        currentAmount = 0;
+        targetBase = null;
+
+        // Check if we should continue collecting
+        if (shouldContinueCollecting && currentResourceNode != null)
+        {
+            ReturnToResourceNode();
+        }
+
+        UpdateVisuals();
+        return delivered;
     }
 
     private void ReturnToBase()
@@ -127,28 +169,6 @@ public class WorkerUnit : UnitBase
             isDelivering = true;
         }
     }
-    #endregion
-
-    #region Easy AI For Repeatly Collection
-    public int DeliverResources()
-    {
-        int delivered = currentResources;
-        currentResources = 0;
-        ResourceManager.Instance.AddResources(ResourceNode.ResourceType.Gold, delivered);
-        UIManager.Instance.ShowFloatingText(targetBase.transform.position, $"+{delivered} Gold", Color.yellow);
-
-        // Reset base reference
-        MainBase deliveredBase = targetBase;
-        targetBase = null;
-
-        // Check if we should continue collecting
-        if (shouldContinueCollecting && currentResourceNode != null)
-        {
-            ReturnToResourceNode();
-        }
-
-        return delivered;
-    }
 
     private void ReturnToResourceNode()
     {
@@ -158,6 +178,29 @@ public class WorkerUnit : UnitBase
             targetPosition = currentResourceNode.transform.position;
             isMoving = true;
             isDelivering = false;
+        }
+    }
+    #endregion
+
+    #region Visualization
+    private void UpdateVisuals()
+    {
+        bool isCarrying = currentAmount > 0;
+        if (bodyRenderer != null)
+        {
+            if (isCarrying)
+            {
+                if (currentType == ResourceManager.ResourceType.LineR)
+                    bodyRenderer.material.color = Color.black;
+                if (currentType == ResourceManager.ResourceType.FaceR)
+                    bodyRenderer.material.color = Color.blue;
+                if (currentType == ResourceManager.ResourceType.CubeR)
+                    bodyRenderer.material.color = Color.cyan;
+            }
+            else
+            {
+                bodyRenderer.material.color = originalColor;
+            }
         }
     }
     #endregion

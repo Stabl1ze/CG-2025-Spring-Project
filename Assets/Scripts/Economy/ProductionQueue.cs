@@ -1,7 +1,9 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
+using static ResourceManager;
+
 
 public class ProductionQueue : MonoBehaviour
 {
@@ -11,14 +13,7 @@ public class ProductionQueue : MonoBehaviour
         public Sprite iconPrefab;
         public GameObject unitPrefab;
         public float productionTime;
-        public ResourceCost[] costs;
-    }
-
-    [System.Serializable]
-    public class ResourceCost
-    {
-        public ResourceNode.ResourceType type;
-        public int amount;
+        public List<ResourcePack> costs = new();
     }
 
     [SerializeField] private ProductionBuilding building;
@@ -26,6 +21,7 @@ public class ProductionQueue : MonoBehaviour
     [SerializeField] private int maxQueueSize = 5;
 
     private Queue<ProductionItem> queue = new();
+    public event Action OnQueueChanged;
     private bool isProducing = false;
 
     public bool CanAddToQueue()
@@ -35,12 +31,14 @@ public class ProductionQueue : MonoBehaviour
 
     public bool TryAddToQueue(int itemIndex)
     {
+        if (!building.IsBuilt()) return false;
         if (itemIndex < 0 || itemIndex >= productionItems.Length) return false;
         if (!CanAddToQueue()) return false;
 
         ProductionItem item = productionItems[itemIndex];
 
         // 检查资源是否足够
+        Debug.Log(item.costs);
         foreach (var cost in item.costs)
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))
@@ -60,6 +58,7 @@ public class ProductionQueue : MonoBehaviour
             StartCoroutine(ProductionCoroutine());
         }
 
+        OnQueueChanged?.Invoke();
         return true;
     }
 
@@ -82,8 +81,7 @@ public class ProductionQueue : MonoBehaviour
             }
 
             queue.Dequeue();
-
-            Debug.Log($"Completed producing: {currentItem.unitPrefab.name}");
+            OnQueueChanged?.Invoke();
         }
 
         isProducing = false;

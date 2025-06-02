@@ -5,17 +5,26 @@ public class ResourceManager : MonoBehaviour
 {
     public static ResourceManager Instance { get; private set; }
 
+    public enum ResourceType { LineR, FaceR, CubeR }
+
+    [System.Serializable]
+    public class ResourcePack
+    {
+        public ResourceType type;
+        public int amount;
+    }
+
     [System.Serializable]
     public class ResourceData
     {
-        public ResourceNode.ResourceType type;
+        public ResourceType type;
         public int amount;
         public int maxCapacity;
     }
 
-    [SerializeField] private List<ResourceData> resources = new List<ResourceData>();
+    [SerializeField] private List<ResourceData> resources = new();
 
-    private Dictionary<ResourceNode.ResourceType, ResourceData> resourceDict = new Dictionary<ResourceNode.ResourceType, ResourceData>();
+    private Dictionary<ResourceType, ResourceData> resourceDict = new();
 
     private void Awake()
     {
@@ -40,7 +49,7 @@ public class ResourceManager : MonoBehaviour
         }
     }
 
-    public bool HasEnoughResources(ResourceNode.ResourceType type, int amount)
+    public bool HasEnoughResources(ResourceType type, int amount)
     {
         if (resourceDict.TryGetValue(type, out ResourceData data))
         {
@@ -49,7 +58,7 @@ public class ResourceManager : MonoBehaviour
         return false;
     }
 
-    public bool SpendResources(ResourceNode.ResourceType type, int amount)
+    public bool SpendResources(ResourceType type, int amount)
     {
         if (!HasEnoughResources(type, amount)) return false;
 
@@ -58,7 +67,7 @@ public class ResourceManager : MonoBehaviour
         return true;
     }
 
-    public void AddResources(ResourceNode.ResourceType type, int amount)
+    public void AddResources(ResourceType type, int amount)
     {
         if (resourceDict.TryGetValue(type, out ResourceData data))
         {
@@ -67,7 +76,7 @@ public class ResourceManager : MonoBehaviour
         }
     }
 
-    public int GetResourceAmount(ResourceNode.ResourceType type)
+    public int GetResourceAmount(ResourceType type)
     {
         if (resourceDict.TryGetValue(type, out ResourceData data))
         {

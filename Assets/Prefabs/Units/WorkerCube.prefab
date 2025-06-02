@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 3021060208203702334}
   - component: {fileID: 7459338947239789388}
   m_Layer: 6
-  m_Name: Worker
+  m_Name: WorkerCube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30,7 +30,7 @@ Transform:
   m_GameObject: {fileID: 8227541304857062777}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 20.73, y: 1.69, z: 3.85}
+  m_LocalPosition: {x: 12.083343, y: 0.5, z: 7.4356036}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -134,8 +134,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 598d18491baed154e977524261248afb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 5
-  rotationSpeed: 10
+  HP: 100
+  maxHP: 100
+  isEnemy: 0
+  healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
+  healthBarOffset: {x: 0, y: -10, z: 0}
   resourceCarryCapacity: 5
   collectionRate: 5
   collectionAbility: 5
+  fetchRange: 1
+  bodyRenderer: {fileID: 4436096803536818562}
+  carryingColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}

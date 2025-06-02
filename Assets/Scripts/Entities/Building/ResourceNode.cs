@@ -1,9 +1,11 @@
 using UnityEngine;
+using static ResourceNode;
 
 public class ResourceNode : MonoBehaviour, ISelectable
 {
     [Header("Resource Settings")]
-    [SerializeField] private ResourceType resourceType = ResourceType.Gold;
+    [SerializeField] private ResourceManager.ResourceType resourceType 
+        = ResourceManager.ResourceType.LineR;
     [SerializeField] private int resourceAmount = 100;
 
     // Selection visual
@@ -13,7 +15,6 @@ public class ResourceNode : MonoBehaviour, ISelectable
     private readonly float indicatorHeightOffset = 0.1f;
 
     protected bool isSelected = false;
-    public enum ResourceType { Gold, Wood, Food }
 
     protected virtual void Awake()
     {
@@ -51,7 +52,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         return transform.position;
     }
 
-    public int Collect(int amount)
+    public ResourceManager.ResourcePack Collect(int amount)
     {
         int collected = Mathf.Min(amount, resourceAmount);
         resourceAmount -= collected;
@@ -61,7 +62,12 @@ public class ResourceNode : MonoBehaviour, ISelectable
             DepleteNode();
         }
 
-        return collected;
+        ResourceManager.ResourcePack pack = new()
+        {
+            type = resourceType,
+            amount = collected
+        };
+        return pack;
     }
 
     private void DepleteNode()

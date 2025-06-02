@@ -4,16 +4,15 @@ using TMPro;
 using System.Collections.Generic;
 using System.Collections;
 using System;
-using UnityEditor.Search;
 
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
     [Header("Resource Display")]
-    [SerializeField] private TMP_Text goldText;
-    [SerializeField] private TMP_Text woodText;
-    [SerializeField] private TMP_Text foodText;
+    [SerializeField] private TMP_Text lineRText;
+    [SerializeField] private TMP_Text faceRText;
+    [SerializeField] private TMP_Text cubeRText;
 
     [Header("Production UI")]
     [SerializeField] private GameObject productionPanel;
@@ -22,15 +21,15 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text queueCountText;
 
     [Header("Queue Visualization")]
-    [SerializeField] private Transform queueVisualizationParent;
+    [SerializeField] private Transform queueIconsParent;
     [SerializeField] private GameObject queueItemPrefab;
-    [SerializeField] private float queueItemSpacing = 30f;
+    [SerializeField] private float queueIconSpacing = 60f;
+    [SerializeField] private Vector2 queueStartPosition = new(0, -100);
     [SerializeField] private GameObject floatingTextPrefab;
 
     private ProductionBuilding currentProductionBuilding;
     private readonly List<GameObject> activeButtons = new();
     private readonly List<GameObject> queueVisualItems = new();
-    private Coroutine queueUpdateCoroutine;
 
     private void Awake()
     {
@@ -44,20 +43,20 @@ public class UIManager : MonoBehaviour
         productionPanel?.SetActive(false);
     }
 
-    public void UpdateResourceDisplay(Dictionary<ResourceNode.ResourceType, ResourceManager.ResourceData> resources)
+    public void UpdateResourceDisplay(Dictionary<ResourceManager.ResourceType, ResourceManager.ResourceData> resources)
     {
         foreach (var resource in resources)
         {
             switch (resource.Key)
             {
-                case ResourceNode.ResourceType.Gold:
-                    goldText.text = $"Gold: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                case ResourceManager.ResourceType.LineR:
+                    lineRText.text = $"LineR: {resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
-                case ResourceNode.ResourceType.Wood:
-                    woodText.text = $"Wood: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                case ResourceManager.ResourceType.FaceR:
+                    faceRText.text = $"FaceR: {resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
-                case ResourceNode.ResourceType.Food:
-                    foodText.text = $"Food: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                case ResourceManager.ResourceType.CubeR:
+                    cubeRText.text = $"CubeR: {resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
             }
         }
@@ -76,7 +75,10 @@ public class UIManager : MonoBehaviour
         productionPanel.SetActive(true);
         ClearProductionUI();
 
-        // Create production buttons
+        // 订阅队列变化事件
+        building.ProductionQueue.OnQueueChanged += UpdateQueueDisplay;
+
+        // 创建生产按钮
         var items = building.ProductionQueue.GetAvailableItems();
         for (int i = 0; i < items.Length; i++)
         {
@@ -84,7 +86,6 @@ public class UIManager : MonoBehaviour
         }
 
         UpdateQueueDisplay();
-        queueUpdateCoroutine = StartCoroutine(UpdateQueueVisualization());
     }
 
     private void CreateProductionButton(int index, ProductionQueue.ProductionItem item)
@@ -99,82 +100,68 @@ public class UIManager : MonoBehaviour
         buttonObj.SetActive(true);
         buttonObj.transform.SetAsLastSibling();
 
-        if (costText != null)
-        {
-            string costString = string.Join(" ",
-                Array.ConvertAll(item.costs, cost => $"{cost.amount} {cost.type}"));
-            costText.text = costString;
-        }
-
         button.onClick.AddListener(() =>
         {
             if (currentProductionBuilding.ProductionQueue.TryAddToQueue(index))
             {
-                UpdateQueueDisplay();
+                // 事件会自动触发UpdateQueueDisplay
             }
             else
             {
-                ShowFloatingText(productionPanel.transform.position, "Not enough resources!", Color.red);
+                // ShowFloatingText(productionPanel.transform.position, "Not enough resources!", Color.red);
             }
         });
-    }
-
-    private IEnumerator UpdateQueueVisualization()
-    {
-        while (productionPanel.activeSelf && currentProductionBuilding != null)
-        {
-            UpdateQueueDisplay();
-            yield return new WaitForSeconds(0.5f);
-        }
     }
 
     private void UpdateQueueDisplay()
     {
         if (currentProductionBuilding == null) return;
 
-        // Update queue count text
+        // 更新队列计数文本
         int count = currentProductionBuilding.ProductionQueue.GetQueueCount();
         queueCountText.text = $"Queue: {count}";
 
-        // Update queue visualization
-        ClearQueueVisualization();
-
-        var queueItems = currentProductionBuilding.ProductionQueue.GetQueueItems().ToArray();
-        for (int i = 0; i < queueItems.Length; i++)
-        {
-            CreateQueueVisualItem(i, queueItems[i]);
-        }
+        // 更新队列可视化
+        UpdateQueueVisualization();
     }
 
-    private void CreateQueueVisualItem(int index, ProductionQueue.ProductionItem item)
+    private void UpdateQueueVisualization()
     {
-        var queueItem = Instantiate(queueItemPrefab, queueVisualizationParent);
-        queueItem.GetComponent<Image>().sprite = item.iconPrefab;
-        queueItem.transform.localPosition = new Vector3(0, -index * queueItemSpacing, 0);
-        queueVisualItems.Add(queueItem);
-
-        if (index == 0 && currentProductionBuilding.ProductionQueue.IsProducing())
+        // 清除现有图标
+        foreach (var icon in queueVisualItems)
         {
-            StartCoroutine(UpdateQueueItemProgress(queueItem, item.productionTime));
+            if (icon != null) Destroy(icon);
         }
-    }
+        queueVisualItems.Clear();
 
-    private IEnumerator UpdateQueueItemProgress(GameObject queueItem, float productionTime)
-    {
-        float timer = 0;
-        Image progressBar = queueItem.transform.Find("ProgressBar")?.GetComponent<Image>();
-        if (progressBar == null) yield break;
+        // 获取当前队列
+        var queue = currentProductionBuilding.ProductionQueue.GetQueueItems().ToArray();
 
-        while (timer < productionTime && queueItem != null)
+        // 创建新图标
+        for (int i = 0; i < queue.Length; i++)
         {
-            timer += Time.deltaTime;
-            progressBar.fillAmount = timer / productionTime;
-            yield return null;
-        }
+            var item = queue[i];
+            var icon = Instantiate(queueItemPrefab, queueIconsParent);
+            icon.SetActive(true);
 
-        if (queueItem != null)
-        {
-            progressBar.fillAmount = 1f;
+            // 设置图标位置
+            RectTransform rect = icon.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(
+                queueStartPosition.x + i * queueIconSpacing,
+                queueStartPosition.y
+            );
+
+            // 设置图标图像和文本
+            var image = icon.GetComponent<Image>();
+            var text = icon.GetComponentInChildren<TMP_Text>();
+
+            // 加载单位图标
+            var iconSprite = Resources.Load<Sprite>($"Icons/{item.unitPrefab.name}");
+            if (iconSprite != null) image.sprite = iconSprite;
+
+            if (text != null) text.text = item.unitPrefab.name;
+
+            queueVisualItems.Add(icon);
         }
     }
 
@@ -204,15 +191,13 @@ public class UIManager : MonoBehaviour
 
     public void HideProductionMenu()
     {
-        productionPanel?.SetActive(false);
-        currentProductionBuilding = null;
-
-        if (queueUpdateCoroutine != null)
+        if (currentProductionBuilding != null)
         {
-            StopCoroutine(queueUpdateCoroutine);
-            queueUpdateCoroutine = null;
+            currentProductionBuilding.ProductionQueue.OnQueueChanged -= UpdateQueueDisplay;
         }
 
+        productionPanel?.SetActive(false);
+        currentProductionBuilding = null;
         ClearProductionUI();
     }
 
@@ -235,19 +220,19 @@ public class UIManager : MonoBehaviour
         GUILayout.BeginArea(new Rect(Screen.width - 210, 10, 200, 200));
         GUILayout.Label("Debug Tools");
 
-        if (GUILayout.Button("Add 100 Gold"))
+        if (GUILayout.Button("Add 100 LineR"))
         {
-            ResourceManager.Instance?.AddResources(ResourceNode.ResourceType.Gold, 100);
+            ResourceManager.Instance?.AddResources(ResourceManager.ResourceType.LineR, 100);
         }
 
-        if (GUILayout.Button("Remove 150 Gold"))
+        if (GUILayout.Button("Remove 150 LineR"))
         {
-            ResourceManager.Instance?.SpendResources(ResourceNode.ResourceType.Gold, 150);
+            ResourceManager.Instance?.SpendResources(ResourceManager.ResourceType.LineR, 150);
         }
 
-        if (GUILayout.Button("Add 100 Wood"))
+        if (GUILayout.Button("Add 100 CubeR"))
         {
-            ResourceManager.Instance?.AddResources(ResourceNode.ResourceType.Wood, 100);
+            ResourceManager.Instance?.AddResources(ResourceManager.ResourceType.CubeR, 100);
         }
 
         GUILayout.EndArea();

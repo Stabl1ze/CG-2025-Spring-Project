@@ -2,12 +2,23 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Outline))]
-public class BuildingBase : MonoBehaviour, ISelectable
+public class BuildingBase : MonoBehaviour, ISelectable, IDamageable
 {
     [Header("Building Settings")]
+    [SerializeField] protected float HP = 100f;
+    [SerializeField] protected float maxHP = 100f;
+    [SerializeField] protected bool isEnemy = false;
     [SerializeField] protected int buildCost = 100;
     [SerializeField] protected float buildTime = 10f;
-    [SerializeField] protected float health = 100f;
+
+    [Header("Health Bar Settings")]
+    [SerializeField] private GameObject healthBarPrefab; // 血条预制件
+    [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0); // 向下偏移10像素
+
+    // 血条实例
+    private GameObject healthBarInstance;
+    private Slider healthBarSlider;
+    private static Canvas uiCanvas; // 统一的UI画布
 
     // Selection visual
     private GameObject selectionIndicator;
@@ -17,13 +28,31 @@ public class BuildingBase : MonoBehaviour, ISelectable
 
     protected bool isSelected = false;
     protected bool isBuilt = false;
+    protected float constructionProgress = 0f;
+
+    public bool IsEnemy => isEnemy;
     public int BuildCost => buildCost;
 
     protected virtual void Awake()
     {
-        // Set select indicator
+        // 初始化UI画布
+        if (uiCanvas == null)
+        {
+            uiCanvas = GameObject.FindGameObjectWithTag("MainCanvas").GetComponent<Canvas>();
+            if (uiCanvas == null)
+            {
+                Debug.LogError("MainCanvas not found! Make sure there is a Canvas with tag 'MainCanvas' in the scene.");
+            }
+        }
+
+        // 创建血条
+        CreateHealthBar();
+
+        // 设置选择指示器
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
+
+        gameObject.tag = isEnemy ? "Enemy" : "Ally";
     }
 
     protected virtual void Start()
@@ -31,16 +60,54 @@ public class BuildingBase : MonoBehaviour, ISelectable
         StartConstruction();
     }
 
+    protected virtual void Update()
+    {
+        if (!isBuilt)
+        {
+            UpdateConstruction();
+        }
+        UpdateHealthBarPosition();
+    }
+
+    protected virtual void OnDestroy()
+    {
+        // 销毁建筑时同步销毁血条实例
+        if (healthBarInstance != null)
+        {
+            Destroy(healthBarInstance);
+        }
+    }
+
     protected virtual void StartConstruction()
     {
-        // TODO: ADD ANIMATION
-        Invoke(nameof(CompleteConstruction), buildTime);
+        HP = 0f;
+        constructionProgress = 0f;
+        ShowHealthBar(true);
+    }
+
+    protected virtual void UpdateConstruction()
+    {
+        if (constructionProgress < 1f)
+        {
+            constructionProgress += Time.deltaTime / buildTime;
+            HP = Mathf.Lerp(0f, maxHP, constructionProgress);
+            UpdateHealthBar();
+
+            if (constructionProgress >= 1f)
+            {
+                CompleteConstruction();
+            }
+        }
     }
 
     protected virtual void CompleteConstruction()
     {
         isBuilt = true;
+        HP = maxHP;
+        UpdateHealthBar();
+        ShowHealthBar(false); // 建造完成后隐藏血条
     }
+
     public virtual bool IsBuilt()
     {
         return isBuilt;
@@ -70,24 +137,81 @@ public class BuildingBase : MonoBehaviour, ISelectable
     }
     #endregion
 
-    public virtual void TakeDamage(float amount)
+    #region IDamageable Implementation
+    public virtual void TakeDamage(float damage)
     {
         if (!isBuilt) return;
 
-        health -= amount;
-        if (health <= 0)
+        if (HP >= maxHP)
+            HP = maxHP;
+
+        HP -= damage;
+        UpdateHealthBar();
+        ShowHealthBar(true); // 受伤时显示血条
+
+        if (HP <= 0f)
+            Destroy(gameObject);
+    }
+
+    public void ShowHealthBar(bool show)
+    {
+        if (healthBarInstance != null)
         {
-            DestroyBuilding();
+            healthBarInstance.SetActive(show);
         }
     }
 
-    protected virtual void DestroyBuilding()
+    public void UpdateHealthBar()
     {
-        Debug.Log($"{gameObject.name} destroyed");
-        Destroy(gameObject);
+        if (healthBarSlider != null)
+        {
+            healthBarSlider.value = HP;
+        }
     }
 
-    // 在Scene视图中绘制Gizmos
+    public float GetCurrentHP()
+    {
+        return HP;
+    }
+
+    public float GetMaxHP()
+    {
+        return maxHP;
+    }
+    #endregion
+
+    // 创建血条实例
+    private void CreateHealthBar()
+    {
+        if (healthBarPrefab == null || uiCanvas == null) return;
+
+        healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
+
+        if (healthBarSlider != null)
+        {
+            healthBarSlider.maxValue = maxHP;
+            healthBarSlider.value = HP >= maxHP ? maxHP : HP;
+            healthBarInstance.SetActive(true);
+        }
+        else
+        {
+            Debug.LogError("HealthBarPrefab is missing Slider component!");
+        }
+    }
+
+    private void UpdateHealthBarPosition()
+    {
+        if (healthBarInstance == null || healthBarSlider == null) return;
+
+        // 将世界坐标转换为屏幕坐标
+        Vector3 screenPosition = Camera.main.WorldToScreenPoint(transform.position);
+
+        // 应用偏移量
+        RectTransform rectTransform = healthBarSlider.GetComponent<RectTransform>();
+        rectTransform.position = screenPosition + healthBarOffset;
+    }
+
     protected virtual void OnDrawGizmosSelected()
     {
         if (!isSelected) return;
@@ -109,11 +233,9 @@ public class BuildingBase : MonoBehaviour, ISelectable
     // Visualize selection
     private void CreateCircleIndicator()
     {
-        // 创建空游戏对象作为指示器父对象
         selectionIndicator = new GameObject("SelectionIndicator");
         selectionIndicator.transform.SetParent(transform);
 
-        // 计算位置（单位底部上方0.1f）
         var renderer = GetComponent<Renderer>();
         float bottomY = renderer != null ?
             (transform.position.y - renderer.bounds.extents.y) :
@@ -121,7 +243,6 @@ public class BuildingBase : MonoBehaviour, ISelectable
 
         selectionIndicator.transform.localPosition = new Vector3(0, bottomY - transform.position.y + indicatorHeightOffset, 0);
 
-        // 创建圆形
         int segments = 32;
         LineRenderer lineRenderer = selectionIndicator.AddComponent<LineRenderer>();
         lineRenderer.useWorldSpace = false;
@@ -130,7 +251,6 @@ public class BuildingBase : MonoBehaviour, ISelectable
         lineRenderer.positionCount = segments + 1;
         lineRenderer.material = new Material(Shader.Find("Unlit/Color")) { color = selectionColor };
 
-        // 设置圆形顶点
         float angle = 0f;
         for (int i = 0; i < segments + 1; i++)
         {
