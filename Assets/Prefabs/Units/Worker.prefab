@@ -136,10 +136,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   rotationSpeed: 10
-  selectionIndicator: {fileID: 0}
-  selectionColor: {r: 0, g: 1, b: 0, a: 1}
-  indicatorRadius: 1
-  indicatorHeightOffset: 0.1
-  resourceCarryCapacity: 20
+  resourceCarryCapacity: 5
   collectionRate: 5
   collectionAbility: 5

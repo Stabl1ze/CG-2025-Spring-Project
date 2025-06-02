@@ -2,7 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
-using static UnityEditor.Progress;
+using System.Collections;
+using System;
+using UnityEditor.Search;
 
 public class UIManager : MonoBehaviour
 {
@@ -19,8 +21,16 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameObject productionButtonPrefab;
     [SerializeField] private TMP_Text queueCountText;
 
+    [Header("Queue Visualization")]
+    [SerializeField] private Transform queueVisualizationParent;
+    [SerializeField] private GameObject queueItemPrefab;
+    [SerializeField] private float queueItemSpacing = 30f;
+    [SerializeField] private GameObject floatingTextPrefab;
+
     private ProductionBuilding currentProductionBuilding;
-    private List<GameObject> activeButtons = new List<GameObject>();
+    private readonly List<GameObject> activeButtons = new();
+    private readonly List<GameObject> queueVisualItems = new();
+    private Coroutine queueUpdateCoroutine;
 
     private void Awake()
     {
@@ -31,9 +41,7 @@ public class UIManager : MonoBehaviour
         }
 
         Instance = this;
-
-        if (productionPanel != null)
-            productionPanel.SetActive(false);
+        productionPanel?.SetActive(false);
     }
 
     public void UpdateResourceDisplay(Dictionary<ResourceNode.ResourceType, ResourceManager.ResourceData> resources)
@@ -57,7 +65,6 @@ public class UIManager : MonoBehaviour
 
     public void ShowProductionMenu(ProductionBuilding building)
     {
-        // 关键检查：确保所有必要的UI元素都已分配
         if (productionPanel == null || productionButtonParent == null ||
             productionButtonPrefab == null || queueCountText == null)
         {
@@ -67,109 +74,182 @@ public class UIManager : MonoBehaviour
 
         currentProductionBuilding = building;
         productionPanel.SetActive(true);
+        ClearProductionUI();
 
-        // 清除旧按钮
-        ClearProductionButtons();
-
-        // 创建新按钮
+        // Create production buttons
         var items = building.ProductionQueue.GetAvailableItems();
         for (int i = 0; i < items.Length; i++)
         {
-            int index = i; // 闭包问题
-
-            // 实例化按钮
-            GameObject buttonObj = Instantiate(productionButtonPrefab, productionButtonParent);
-            buttonObj.SetActive(true);
-            activeButtons.Add(buttonObj);
-            buttonObj.transform.SetAsLastSibling();
-
-            // 设置按钮文本
-            TMP_Text buttonText = buttonObj.GetComponentInChildren<TMP_Text>();
-            buttonText.text = items[i].unitPrefab.name;
-
-            // 添加点击事件
-            Button button = buttonObj.GetComponent<Button>();
-            button.onClick.AddListener(() => OnProductionButtonClicked(index));
+            CreateProductionButton(i, items[i]);
         }
 
         UpdateQueueDisplay();
+        queueUpdateCoroutine = StartCoroutine(UpdateQueueVisualization());
     }
 
-    private void OnProductionButtonClicked(int itemIndex)
+    private void CreateProductionButton(int index, ProductionQueue.ProductionItem item)
     {
-        if (currentProductionBuilding != null && currentProductionBuilding.IsBuilt())
+        var buttonObj = Instantiate(productionButtonPrefab, productionButtonParent);
+        var button = buttonObj.GetComponent<Button>();
+        var text = buttonObj.GetComponentInChildren<TMP_Text>();
+        var costText = buttonObj.transform.Find("CostText")?.GetComponent<TMP_Text>();
+
+        text.text = item.unitPrefab.name;
+        activeButtons.Add(buttonObj);
+        buttonObj.SetActive(true);
+        buttonObj.transform.SetAsLastSibling();
+
+        if (costText != null)
         {
-            if (currentProductionBuilding.ProductionQueue.TryAddToQueue(itemIndex))
+            string costString = string.Join(" ",
+                Array.ConvertAll(item.costs, cost => $"{cost.amount} {cost.type}"));
+            costText.text = costString;
+        }
+
+        button.onClick.AddListener(() =>
+        {
+            if (currentProductionBuilding.ProductionQueue.TryAddToQueue(index))
             {
                 UpdateQueueDisplay();
             }
             else
             {
-                Debug.Log("Failed to add to production queue");
+                ShowFloatingText(productionPanel.transform.position, "Not enough resources!", Color.red);
             }
-        }
+        });
     }
 
-    public void HideProductionMenu()
+    private IEnumerator UpdateQueueVisualization()
     {
-        if (productionPanel != null)
+        while (productionPanel.activeSelf && currentProductionBuilding != null)
         {
-            productionPanel.SetActive(false);
+            UpdateQueueDisplay();
+            yield return new WaitForSeconds(0.5f);
         }
-
-        currentProductionBuilding = null;
-        ClearProductionButtons();
-    }
-
-    private void ClearProductionButtons()
-    {
-        foreach (GameObject button in activeButtons)
-        {
-            if (button != null)
-            {
-                Destroy(button);
-            }
-        }
-        activeButtons.Clear();
     }
 
     private void UpdateQueueDisplay()
     {
-        if (currentProductionBuilding != null && queueCountText != null)
+        if (currentProductionBuilding == null) return;
+
+        // Update queue count text
+        int count = currentProductionBuilding.ProductionQueue.GetQueueCount();
+        queueCountText.text = $"Queue: {count}";
+
+        // Update queue visualization
+        ClearQueueVisualization();
+
+        var queueItems = currentProductionBuilding.ProductionQueue.GetQueueItems().ToArray();
+        for (int i = 0; i < queueItems.Length; i++)
         {
-            queueCountText.text = $"Queue: {currentProductionBuilding.ProductionQueue.GetQueueCount()}";
+            CreateQueueVisualItem(i, queueItems[i]);
         }
     }
 
+    private void CreateQueueVisualItem(int index, ProductionQueue.ProductionItem item)
+    {
+        var queueItem = Instantiate(queueItemPrefab, queueVisualizationParent);
+        queueItem.GetComponent<Image>().sprite = item.iconPrefab;
+        queueItem.transform.localPosition = new Vector3(0, -index * queueItemSpacing, 0);
+        queueVisualItems.Add(queueItem);
+
+        if (index == 0 && currentProductionBuilding.ProductionQueue.IsProducing())
+        {
+            StartCoroutine(UpdateQueueItemProgress(queueItem, item.productionTime));
+        }
+    }
+
+    private IEnumerator UpdateQueueItemProgress(GameObject queueItem, float productionTime)
+    {
+        float timer = 0;
+        Image progressBar = queueItem.transform.Find("ProgressBar")?.GetComponent<Image>();
+        if (progressBar == null) yield break;
+
+        while (timer < productionTime && queueItem != null)
+        {
+            timer += Time.deltaTime;
+            progressBar.fillAmount = timer / productionTime;
+            yield return null;
+        }
+
+        if (queueItem != null)
+        {
+            progressBar.fillAmount = 1f;
+        }
+    }
+
+    private void ClearProductionUI()
+    {
+        ClearProductionButtons();
+        ClearQueueVisualization();
+    }
+
+    private void ClearProductionButtons()
+    {
+        foreach (var button in activeButtons)
+        {
+            if (button != null) Destroy(button);
+        }
+        activeButtons.Clear();
+    }
+
+    private void ClearQueueVisualization()
+    {
+        foreach (var item in queueVisualItems)
+        {
+            if (item != null) Destroy(item);
+        }
+        queueVisualItems.Clear();
+    }
+
+    public void HideProductionMenu()
+    {
+        productionPanel?.SetActive(false);
+        currentProductionBuilding = null;
+
+        if (queueUpdateCoroutine != null)
+        {
+            StopCoroutine(queueUpdateCoroutine);
+            queueUpdateCoroutine = null;
+        }
+
+        ClearProductionUI();
+    }
+
+    public void ShowFloatingText(Vector3 position, string text, Color color)
+    {
+        if (floatingTextPrefab == null) return;
+
+        GameObject floatingText = Instantiate(floatingTextPrefab, position, Quaternion.identity);
+        TMP_Text textComponent = floatingText.GetComponent<TMP_Text>();
+        textComponent.text = text;
+        textComponent.color = color;
+        Destroy(floatingText, 2f);
+    }
+
+    // Debug Mode Tests
     private void OnGUI()
     {
-        if (GameManager.Instance.GetDebugStatus())
+        if (GameManager.Instance?.GetDebugStatus() != true) return;
+
+        GUILayout.BeginArea(new Rect(Screen.width - 210, 10, 200, 200));
+        GUILayout.Label("Debug Tools");
+
+        if (GUILayout.Button("Add 100 Gold"))
         {
-            GUILayout.BeginArea(new Rect(Screen.width - 210, 10, 200, 200));
-            GUILayout.Label("Debug Tools");
-
-            if (GUILayout.Button("Add 100 Gold"))
-            {
-                ResourceManager.Instance.AddResources(ResourceNode.ResourceType.Gold, 100);
-            }
-
-            if (GUILayout.Button("Remove 150 Gold"))
-            {
-                ResourceManager.Instance.SpendResources(ResourceNode.ResourceType.Gold, 150);
-            }
-
-            if (GUILayout.Button("Add 100 Wood"))
-            {
-                ResourceManager.Instance.AddResources(ResourceNode.ResourceType.Wood, 100);
-            }
-
-            if (currentProductionBuilding != null && GUILayout.Button("Complete Current Production"))
-            {
-                // 快速完成当前生产项目的调试方法
-                currentProductionBuilding.ProductionQueue.CompleteCurrentItem();
-            }
-
-            GUILayout.EndArea();
+            ResourceManager.Instance?.AddResources(ResourceNode.ResourceType.Gold, 100);
         }
+
+        if (GUILayout.Button("Remove 150 Gold"))
+        {
+            ResourceManager.Instance?.SpendResources(ResourceNode.ResourceType.Gold, 150);
+        }
+
+        if (GUILayout.Button("Add 100 Wood"))
+        {
+            ResourceManager.Instance?.AddResources(ResourceNode.ResourceType.Wood, 100);
+        }
+
+        GUILayout.EndArea();
     }
 }

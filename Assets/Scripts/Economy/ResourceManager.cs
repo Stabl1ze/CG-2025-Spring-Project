@@ -78,14 +78,6 @@ public class ResourceManager : MonoBehaviour
 
     private void UpdateUI()
     {
-        // 这里会更新UI显示
         UIManager.Instance?.UpdateResourceDisplay(resourceDict);
-    }
-
-    // 调试方法
-    [ContextMenu("Add 100 Gold")]
-    private void DebugAddGold()
-    {
-        AddResources(ResourceNode.ResourceType.Gold, 100);
     }
 }
