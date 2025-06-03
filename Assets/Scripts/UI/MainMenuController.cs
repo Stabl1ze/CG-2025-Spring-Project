@@ -1,6 +1,5 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
+using System.Collections;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -54,7 +53,26 @@ public class MainMenuController : MonoBehaviour
     public void StartGame()
     {
         PlayButtonSound();
-        SceneManager.LoadScene("MainScene");
+        StartCoroutine(StartGameRoutine());
+    }
+
+    private IEnumerator StartGameRoutine()
+    {
+        // 显示加载界面（如果有）
+        // loadingPanel.SetActive(true);
+
+        // 获取或创建WorldGenerator实例
+        WorldGenerator worldGenerator = FindObjectOfType<WorldGenerator>();
+        if (worldGenerator == null)
+        {
+            GameObject generatorObj = new("WorldGenerator");
+            worldGenerator = generatorObj.AddComponent<WorldGenerator>();
+        }
+
+        // 开始生成世界
+        worldGenerator.GenerateNewWorld();
+
+        yield return null;
     }
 
     public void QuitGame()

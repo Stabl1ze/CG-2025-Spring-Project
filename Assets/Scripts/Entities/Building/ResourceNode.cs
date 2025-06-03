@@ -7,6 +7,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
     [SerializeField] private ResourceManager.ResourceType resourceType 
         = ResourceManager.ResourceType.LineR;
     [SerializeField] private int resourceAmount = 100;
+    [SerializeField] private int collectAmount = 2;
 
     // Selection visual
     private GameObject selectionIndicator;
@@ -52,10 +53,11 @@ public class ResourceNode : MonoBehaviour, ISelectable
         return transform.position;
     }
 
-    public ResourceManager.ResourcePack Collect(int amount)
+    public ResourceManager.ResourcePack Collect()
     {
-        int collected = Mathf.Min(amount, resourceAmount);
+        int collected = Mathf.Min(collectAmount, resourceAmount);
         resourceAmount -= collected;
+        Debug.Log($"{gameObject.name} node collected");
 
         if (resourceAmount <= 0)
         {
@@ -72,8 +74,9 @@ public class ResourceNode : MonoBehaviour, ISelectable
 
     private void DepleteNode()
     {
+        if(gameObject != null)
+            Destroy(gameObject);
         Debug.Log($"{resourceType} node depleted");
-        Destroy(gameObject);
     }
 
     private void CreateCircleIndicator()

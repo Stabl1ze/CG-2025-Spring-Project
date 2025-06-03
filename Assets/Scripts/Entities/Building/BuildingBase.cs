@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Outline))]
-public class BuildingBase : MonoBehaviour, ISelectable, IDamageable
+public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 {
     [Header("Building Settings")]
     [SerializeField] protected float HP = 100f;
@@ -118,12 +118,14 @@ public class BuildingBase : MonoBehaviour, ISelectable, IDamageable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
+        ShowHealthBar(true);
     }
 
     public virtual void OnDeselect()
     {
         isSelected = false;
         selectionIndicator.SetActive(false);
+        ShowHealthBar(false);
     }
 
     public virtual void OnDoubleClick()
@@ -134,6 +136,13 @@ public class BuildingBase : MonoBehaviour, ISelectable, IDamageable
     public virtual Vector2 GetXZ()
     {
         return new(transform.position.x, transform.position.z);
+    }
+    #endregion
+
+    #region ICommandable Implementation
+    public virtual void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
+    {
+        if (isEnemy) return;
     }
     #endregion
 

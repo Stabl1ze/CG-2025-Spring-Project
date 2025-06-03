@@ -10,6 +10,7 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; }
 
     [Header("Resource Display")]
+    [SerializeField] private GameObject resourcePanel;
     [SerializeField] private TMP_Text lineRText;
     [SerializeField] private TMP_Text faceRText;
     [SerializeField] private TMP_Text cubeRText;
@@ -40,6 +41,7 @@ public class UIManager : MonoBehaviour
         }
 
         Instance = this;
+        resourcePanel?.SetActive(true);
         productionPanel?.SetActive(false);
     }
 
@@ -50,13 +52,13 @@ public class UIManager : MonoBehaviour
             switch (resource.Key)
             {
                 case ResourceManager.ResourceType.LineR:
-                    lineRText.text = $"LineR: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                    lineRText.text = $"{resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
                 case ResourceManager.ResourceType.FaceR:
-                    faceRText.text = $"FaceR: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                    faceRText.text = $"{resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
                 case ResourceManager.ResourceType.CubeR:
-                    cubeRText.text = $"CubeR: {resource.Value.amount}/{resource.Value.maxCapacity}";
+                    cubeRText.text = $"{resource.Value.amount}/{resource.Value.maxCapacity}";
                     break;
             }
         }

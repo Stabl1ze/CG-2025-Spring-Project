@@ -1,12 +1,12 @@
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class WorkerUnit : UnitBase
 {
     [Header("Worker Settings")]
     [SerializeField] private int resourceCarryCapacity = 10;
     [SerializeField] private float collectionRate = 1f;
-    [SerializeField] private int collectionAbility = 1;
     [SerializeField] private float fetchRange = 1f;
 
     [Header("Visual Effects")]
@@ -33,12 +33,23 @@ public class WorkerUnit : UnitBase
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
         if (isEnemy) return; // Enemy check
+        if (targetObject == null)
+        {
+            base.ReceiveCommand(targetPosition, targetObject);
+            return;
+        }
 
         // Reset when new command is received
         CancelCollection();
         isDelivering = false;
+        shouldContinueCollecting = false;
+        currentResourceNode = null;
+        targetBase = null;
+        
+        ResourceNode node = targetObject.GetComponentInParent<ResourceNode>();
+        MainBase mainBase = targetObject.GetComponentInParent<MainBase>();
 
-        if (targetObject != null && targetObject.TryGetComponent<ResourceNode>(out ResourceNode node))
+        if (targetObject != null && node != null)
         {
             // Start collecting when click on resource
             currentResourceNode = node;
@@ -47,7 +58,7 @@ public class WorkerUnit : UnitBase
             isCollecting = false;
             shouldContinueCollecting = true; // Enable continuous collection
         }
-        else if (targetObject != null && targetObject.TryGetComponent<MainBase>(out MainBase mainBase))
+        else if (targetObject != null && mainBase != null)
         {
             // Set base as target for delivery
             targetBase = mainBase;
@@ -55,14 +66,9 @@ public class WorkerUnit : UnitBase
             isMoving = true;
             isDelivering = true;
         }
-        else
-        {
-            // Normal move
+        else  // Normally move
             base.ReceiveCommand(targetPosition, targetObject);
-            currentResourceNode = null;
-            targetBase = null;
-            shouldContinueCollecting = false; // Disable continuous collection
-        }
+
     }
 
     protected override void MoveToTarget()
@@ -110,24 +116,16 @@ public class WorkerUnit : UnitBase
         }
 
         // Collect 
-        ResourceManager.ResourcePack pack = currentResourceNode.Collect(collectionAbility);
+        if (currentResourceNode == null)
+            return;
+        ResourceManager.ResourcePack pack = currentResourceNode.Collect();
         if (pack.amount > 0)
         {
             currentAmount += pack.amount;
             currentType = pack.type;
         }
-        else
-        {
-            CancelCollection();
-            ReturnToBase();
-        }
-
-        if (currentResourceNode == null || currentAmount >= resourceCarryCapacity)
-        {
-            CancelCollection();
-            ReturnToBase();
-        }
-
+        CancelCollection();
+        ReturnToBase();
         UpdateVisuals();
     }
 

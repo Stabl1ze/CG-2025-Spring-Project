@@ -62,7 +62,7 @@ public class InputManager : MonoBehaviour
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, selectableLayer))
             {
-                ISelectable selectable = hit.collider.GetComponent<ISelectable>();
+                ISelectable selectable = hit.collider.GetComponentInParent<ISelectable>();
                 if (selectable != null)
                 {
                     if (timeSinceLastClick <= doubleClickTime)
