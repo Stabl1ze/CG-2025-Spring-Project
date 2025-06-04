@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using static ResourceManager;
 
 [RequireComponent(typeof(Outline))]
 public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
@@ -8,12 +10,16 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     [SerializeField] protected float HP = 100f;
     [SerializeField] protected float maxHP = 100f;
     [SerializeField] protected bool isEnemy = false;
-    [SerializeField] protected int buildCost = 100;
+    [SerializeField] protected List<ResourcePack> costs = new();
     [SerializeField] protected float buildTime = 10f;
 
     [Header("Health Bar Settings")]
     [SerializeField] private GameObject healthBarPrefab; // 血条预制件
     [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0); // 向下偏移10像素
+
+    [Header("Collision Settings")]
+    [SerializeField] private float collisionRadius = 0.5f; // 单位碰撞半径
+    [SerializeField] private LayerMask collisionLayerMask; // 需要检测碰撞的层
 
     // 血条实例
     private GameObject healthBarInstance;
@@ -31,7 +37,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     protected float constructionProgress = 0f;
 
     public bool IsEnemy => isEnemy;
-    public int BuildCost => buildCost;
 
     protected virtual void Awake()
     {
@@ -52,7 +57,14 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
 
-        gameObject.tag = isEnemy ? "Enemy" : "Ally";
+        gameObject.TryGetComponent<SphereCollider>(out var collider);
+        if (collider == null)
+        {
+            collider = gameObject.AddComponent<SphereCollider>();
+            collider.radius = collisionRadius;
+        }
+        gameObject.AddComponent<Rigidbody>().useGravity = false;
+        collider.isTrigger = true;
     }
 
     protected virtual void Start()
@@ -78,6 +90,59 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         }
     }
 
+    private void OnTriggerStay(Collider other)
+    {
+        if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
+            return;
+
+        // 提前获取碰撞半径 (避免重复计算)
+        float otherRadius = GetOtherCollisionRadius(other);
+        float totalRadius = collisionRadius + otherRadius;
+
+        // 计算水平方向向量 (忽略Y轴)
+        Vector3 otherPos = other.transform.position;
+        Vector3 myPos = transform.position;
+        Vector3 direction = new Vector3(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
+
+        // 处理零向量情况
+        if (direction.sqrMagnitude < 0.001f)
+        {
+            direction = Vector3.forward;
+        }
+
+        float distance = direction.magnitude;
+        direction.Normalize();
+
+        if (distance < totalRadius)
+        {
+            float overlap = totalRadius - distance;
+            Vector3 pushVector = 0.5f * overlap * direction;
+            Rigidbody otherRb = other.attachedRigidbody;
+            if (otherRb != null)
+                otherRb.position += pushVector;
+            else
+                other.transform.position += pushVector;
+        }
+    }
+
+    protected virtual void OnDrawGizmosSelected()
+    {
+        if (!isSelected) return;
+
+        var renderer = GetComponent<Renderer>();
+        if (renderer == null) return;
+
+        float bottomY = transform.position.y - renderer.bounds.extents.y;
+        Vector3 indicatorPos = new Vector3(
+            transform.position.x,
+            bottomY + indicatorHeightOffset,
+            transform.position.z
+        );
+
+        Gizmos.color = selectionColor;
+        Gizmos.DrawWireSphere(indicatorPos, indicatorRadius);
+    }
+
     protected virtual void StartConstruction()
     {
         HP = 0f;
@@ -92,7 +157,10 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
             constructionProgress += Time.deltaTime / buildTime;
             HP = Mathf.Lerp(0f, maxHP, constructionProgress);
             UpdateHealthBar();
-
+            if (UIManager.Instance != null && UIManager.Instance.currentBuilding == this)
+            {
+                UIManager.Instance.UpdateBuildingHP(this);
+            }
             if (constructionProgress >= 1f)
             {
                 CompleteConstruction();
@@ -119,13 +187,22 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         isSelected = true;
         selectionIndicator.SetActive(true);
         ShowHealthBar(true);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowBuildingPanel(this);
+        }
     }
 
     public virtual void OnDeselect()
     {
         isSelected = false;
         selectionIndicator.SetActive(false);
-        ShowHealthBar(false);
+        if (isBuilt)
+            ShowHealthBar(false);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.HideBuildingPanel();
+        }
     }
 
     public virtual void OnDoubleClick()
@@ -156,10 +233,19 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
 
         HP -= damage;
         UpdateHealthBar();
-        ShowHealthBar(true); // 受伤时显示血条
+        ShowHealthBar(true);
+
+        if (UIManager.Instance != null && UIManager.Instance.currentBuilding == this)
+        {
+            UIManager.Instance.UpdateBuildingHP(this);
+        }
 
         if (HP <= 0f)
+        {
+            OnDeselect();
+            SelectionManager.Instance.DeselectThis(this);
             Destroy(gameObject);
+        }
     }
 
     public void ShowHealthBar(bool show)
@@ -221,24 +307,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         rectTransform.position = screenPosition + healthBarOffset;
     }
 
-    protected virtual void OnDrawGizmosSelected()
-    {
-        if (!isSelected) return;
-
-        var renderer = GetComponent<Renderer>();
-        if (renderer == null) return;
-
-        float bottomY = transform.position.y - renderer.bounds.extents.y;
-        Vector3 indicatorPos = new Vector3(
-            transform.position.x,
-            bottomY + indicatorHeightOffset,
-            transform.position.z
-        );
-
-        Gizmos.color = selectionColor;
-        Gizmos.DrawWireSphere(indicatorPos, indicatorRadius);
-    }
-
     // Visualize selection
     private void CreateCircleIndicator()
     {
@@ -269,4 +337,26 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
             angle += 360f / segments;
         }
     }
+
+    #region Hitbox
+    private float GetOtherCollisionRadius(Collider other)
+    {
+        var unit = other.GetComponent<UnitBase>();
+        if (unit != null) return unit.GetCollisionRadius();
+
+        var building = other.GetComponent<BuildingBase>();
+        if (building != null) return building.GetCollisionRadius();
+
+        var resource = other.GetComponent<ResourceNode>();
+        if (resource != null) return resource.GetCollisionRadius();
+
+        return 1.0f; // 默认值
+    }
+
+    // 获取碰撞半径
+    public float GetCollisionRadius()
+    {
+        return collisionRadius;
+    }
+    #endregion
 }

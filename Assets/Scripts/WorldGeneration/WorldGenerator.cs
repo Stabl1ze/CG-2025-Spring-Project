@@ -304,11 +304,11 @@ public class WorldGenerator : MonoBehaviour
         Instantiate(basePrefab, spawnCenterV3, Quaternion.identity);
 
         // 生成工人1 (x-3, z+3)
-        Vector3 worker1Pos = spawnCenterV3 + new Vector3(-3f, 0f, 3f);
+        Vector3 worker1Pos = spawnCenterV3 + new Vector3(-3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
 
         // 生成工人2 (x+3, z+3)
-        Vector3 worker2Pos = spawnCenterV3 + new Vector3(3f, 0f, 3f);
+        Vector3 worker2Pos = spawnCenterV3 + new Vector3(3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker2Pos, Quaternion.identity);
     }
     #endregion

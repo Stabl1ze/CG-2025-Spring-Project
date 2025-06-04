@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6664559476704434774}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Spawnpoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -43,7 +43,7 @@ GameObject:
   - component: {fileID: 6399784561655601037}
   - component: {fileID: 3544310142590889235}
   - component: {fileID: 1309455958790413366}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -130,8 +130,8 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 1
   m_Enabled: 1
   serializedVersion: 3
   m_Radius: 0.5
@@ -146,7 +146,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2350425554605407389}
   - component: {fileID: 5361750247211939329}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: ProductionQueue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -202,9 +202,10 @@ GameObject:
   - component: {fileID: 2837510826249343353}
   - component: {fileID: 6974207010477808692}
   - component: {fileID: 9046429661322279194}
-  m_Layer: 6
+  - component: {fileID: 8922992252944761714}
+  m_Layer: 8
   m_Name: MainBase
-  m_TagString: Untagged
+  m_TagString: Selectable
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -255,17 +256,46 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aa742dff2167beb4daca14d55500913d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  HP: 0
+  HP: 500
   maxHP: 500
   isEnemy: 0
-  buildCost: 1
-  buildTime: 1
+  costs:
+  - type: 0
+    amount: 200
+  - type: 2
+    amount: 50
+  buildTime: 100
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
   healthBarOffset: {x: 0, y: -40, z: 0}
+  collisionRadius: 0.5
+  collisionLayerMask:
+    serializedVersion: 2
+    m_Bits: 128
   productionQueue: {fileID: 5361750247211939329}
   spawnPoint: {fileID: 6664559476704434774}
   rallyPoint: {fileID: 911704501361594689}
   selfHealing: 10
+--- !u!135 &8922992252944761714
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5716303177908508083}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 1
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1
+  m_Center: {x: 0, y: 0.5, z: 0}
 --- !u!1 &7110149056962342036
 GameObject:
   m_ObjectHideFlags: 0
@@ -278,7 +308,7 @@ GameObject:
   - component: {fileID: 1756478254206708030}
   - component: {fileID: 4821665597328446674}
   - component: {fileID: 1773479428741646736}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Buttom
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -380,7 +410,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 565012735426181909}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -419,7 +449,7 @@ GameObject:
   - component: {fileID: 3806635379796074824}
   - component: {fileID: 5446659022197014543}
   - component: {fileID: 5573011192340664164}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Top
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -521,7 +551,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 911704501361594689}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Rallypoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -555,7 +585,7 @@ GameObject:
   - component: {fileID: 6294266535011878867}
   - component: {fileID: 258553569385254177}
   - component: {fileID: 6957394402260356869}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -662,7 +692,7 @@ GameObject:
   - component: {fileID: 5995448106773874815}
   - component: {fileID: 2978361556007355997}
   - component: {fileID: 7915647607983026747}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Top (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}

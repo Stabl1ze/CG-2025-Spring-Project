@@ -15,11 +15,24 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text faceRText;
     [SerializeField] private TMP_Text cubeRText;
 
-    [Header("Production UI")]
+    [Header("Unit UI")]
+    [SerializeField] private GameObject unitPanel;
+    [SerializeField] private TMP_Text unitNameText;
+    [SerializeField] private TMP_Text unitHPText;
+
+    [Header("Building UI")]
     [SerializeField] private GameObject productionPanel;
+    [SerializeField] private TMP_Text buildingNameText;
+    [SerializeField] private TMP_Text buildingHPText;
     [SerializeField] private Transform productionButtonParent;
     [SerializeField] private GameObject productionButtonPrefab;
     [SerializeField] private TMP_Text queueCountText;
+
+    [Header("Resource UI")]
+    [SerializeField] private GameObject resourceNodePanel;
+    [SerializeField] private TMP_Text resourceNameText;
+    [SerializeField] private TMP_Text resourceAmountText;
+    [SerializeField] private TMP_Text resourceTypeText;
 
     [Header("Queue Visualization")]
     [SerializeField] private Transform queueIconsParent;
@@ -28,7 +41,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Vector2 queueStartPosition = new(0, -100);
     [SerializeField] private GameObject floatingTextPrefab;
 
-    private ProductionBuilding currentProductionBuilding;
+    public BuildingBase currentBuilding;
+    public ProductionBuilding currentPBuilding;
+    public UnitBase currentUnit;
+    public ResourceNode currentResourceNode;
     private readonly List<GameObject> activeButtons = new();
     private readonly List<GameObject> queueVisualItems = new();
 
@@ -43,6 +59,8 @@ public class UIManager : MonoBehaviour
         Instance = this;
         resourcePanel?.SetActive(true);
         productionPanel?.SetActive(false);
+        unitPanel?.SetActive(false);
+        resourceNodePanel?.SetActive(false);
     }
 
     public void UpdateResourceDisplay(Dictionary<ResourceManager.ResourceType, ResourceManager.ResourceData> resources)
@@ -64,7 +82,63 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void ShowProductionMenu(ProductionBuilding building)
+    #region Resource Node Panel
+    public void ShowResourceNodePanel(ResourceNode resourceNode)
+    {
+        if (resourceNodePanel == null || resourceAmountText == null || resourceTypeText == null)
+        {
+            Debug.LogError("UI elements not assigned in UIManager! Please check the inspector.");
+            return;
+        }
+
+        currentResourceNode = resourceNode;
+        resourceNodePanel.SetActive(true);
+        resourceNameText.text = $"{resourceNode.gameObject.name}";
+        UpdateResourceNodeDisplay(resourceNode);
+    }
+
+    public void UpdateResourceNodeDisplay(ResourceNode resourceNode)
+    {
+        resourceAmountText.text = $"Amount: {resourceNode.GetResourceAmount()}";
+        resourceTypeText.text = $"Type: {resourceNode.GetResourceType()}";
+    }
+
+    public void HideResourceNodePanel()
+    {
+        resourceNodePanel?.SetActive(false);
+        currentResourceNode = null;
+    }
+    #endregion
+
+    #region Unit Panel
+    public void ShowUnitPanel(UnitBase unit)
+    {
+        if (unitPanel == null || unitHPText == null)
+        {
+            Debug.LogError("UI elements not assigned in UIManager! Please check the inspector.");
+            return;
+        }
+
+        currentUnit = unit;
+        unitPanel.SetActive(true);
+        unitNameText.text = $"{unit.gameObject.name}";
+        UpdateUnitHP(unit);
+    }
+
+    public void UpdateUnitHP(UnitBase unit)
+    {
+        unitHPText.text = $"HP: {Math.Round(unit.GetCurrentHP())}/{unit.GetMaxHP()}";
+    }
+
+    public void HideUnitPanel()
+    {
+        unitPanel?.SetActive(false);
+        currentUnit = null;
+    }
+    #endregion
+
+    #region Building Panel
+    public void ShowBuildingPanel(BuildingBase building)
     {
         if (productionPanel == null || productionButtonParent == null ||
             productionButtonPrefab == null || queueCountText == null)
@@ -73,21 +147,28 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        currentProductionBuilding = building;
+        currentBuilding = building;
         productionPanel.SetActive(true);
         ClearProductionUI();
+        Debug.Log(building.gameObject);
+        buildingNameText.text = $"{building.gameObject.name}";
+        UpdateBuildingHP(building);
 
-        // 订阅队列变化事件
-        building.ProductionQueue.OnQueueChanged += UpdateQueueDisplay;
-
-        // 创建生产按钮
-        var items = building.ProductionQueue.GetAvailableItems();
-        for (int i = 0; i < items.Length; i++)
+        // If production building
+        if (building is ProductionBuilding pBuilding)
         {
-            CreateProductionButton(i, items[i]);
-        }
+            currentPBuilding = pBuilding;
+            pBuilding.ProductionQueue.OnQueueChanged += UpdateQueueDisplay;
 
-        UpdateQueueDisplay();
+            // Create production buttons
+            var items = pBuilding.ProductionQueue.GetAvailableItems();
+            for (int i = 0; i < items.Length; i++)
+            {
+                CreateProductionButton(i, items[i]);
+            }
+
+            UpdateQueueDisplay();
+        }
     }
 
     private void CreateProductionButton(int index, ProductionQueue.ProductionItem item)
@@ -104,9 +185,9 @@ public class UIManager : MonoBehaviour
 
         button.onClick.AddListener(() =>
         {
-            if (currentProductionBuilding.ProductionQueue.TryAddToQueue(index))
+            if (currentPBuilding.ProductionQueue.TryAddToQueue(index))
             {
-                // 事件会自动触发UpdateQueueDisplay
+                // Queue display will update via event
             }
             else
             {
@@ -117,47 +198,47 @@ public class UIManager : MonoBehaviour
 
     private void UpdateQueueDisplay()
     {
-        if (currentProductionBuilding == null) return;
+        if (currentPBuilding == null) return;
 
-        // 更新队列计数文本
-        int count = currentProductionBuilding.ProductionQueue.GetQueueCount();
+        // Update queue count text
+        int count = currentPBuilding.ProductionQueue.GetQueueCount();
         queueCountText.text = $"Queue: {count}";
 
-        // 更新队列可视化
+        // Update queue visualization
         UpdateQueueVisualization();
     }
 
     private void UpdateQueueVisualization()
     {
-        // 清除现有图标
+        // Clear existing icons
         foreach (var icon in queueVisualItems)
         {
             if (icon != null) Destroy(icon);
         }
         queueVisualItems.Clear();
 
-        // 获取当前队列
-        var queue = currentProductionBuilding.ProductionQueue.GetQueueItems().ToArray();
+        // Get current queue
+        var queue = currentPBuilding.ProductionQueue.GetQueueItems().ToArray();
 
-        // 创建新图标
+        // Create new icons
         for (int i = 0; i < queue.Length; i++)
         {
             var item = queue[i];
             var icon = Instantiate(queueItemPrefab, queueIconsParent);
             icon.SetActive(true);
 
-            // 设置图标位置
+            // Set icon position
             RectTransform rect = icon.GetComponent<RectTransform>();
             rect.anchoredPosition = new Vector2(
                 queueStartPosition.x + i * queueIconSpacing,
                 queueStartPosition.y
             );
 
-            // 设置图标图像和文本
+            // Set icon image and text
             var image = icon.GetComponent<Image>();
             var text = icon.GetComponentInChildren<TMP_Text>();
 
-            // 加载单位图标
+            // Load icon sprite
             var iconSprite = Resources.Load<Sprite>($"Icons/{item.unitPrefab.name}");
             if (iconSprite != null) image.sprite = iconSprite;
 
@@ -165,6 +246,11 @@ public class UIManager : MonoBehaviour
 
             queueVisualItems.Add(icon);
         }
+    }
+
+    public void UpdateBuildingHP(BuildingBase building)
+    {
+        buildingHPText.text = $"HP: {Math.Round(building.GetCurrentHP())}/{building.GetMaxHP()}";
     }
 
     private void ClearProductionUI()
@@ -191,30 +277,21 @@ public class UIManager : MonoBehaviour
         queueVisualItems.Clear();
     }
 
-    public void HideProductionMenu()
+    public void HideBuildingPanel()
     {
-        if (currentProductionBuilding != null)
+        if (currentPBuilding != null)
         {
-            currentProductionBuilding.ProductionQueue.OnQueueChanged -= UpdateQueueDisplay;
+            currentPBuilding.ProductionQueue.OnQueueChanged -= UpdateQueueDisplay;
         }
 
         productionPanel?.SetActive(false);
-        currentProductionBuilding = null;
+        currentBuilding = null;
+        currentPBuilding = null;
         ClearProductionUI();
     }
+    #endregion
 
-    public void ShowFloatingText(Vector3 position, string text, Color color)
-    {
-        if (floatingTextPrefab == null) return;
-
-        GameObject floatingText = Instantiate(floatingTextPrefab, position, Quaternion.identity);
-        TMP_Text textComponent = floatingText.GetComponent<TMP_Text>();
-        textComponent.text = text;
-        textComponent.color = color;
-        Destroy(floatingText, 2f);
-    }
-
-    // Debug Mode Tests
+    #region Debug Mode Test
     private void OnGUI()
     {
         if (GameManager.Instance?.GetDebugStatus() != true) return;
@@ -239,4 +316,5 @@ public class UIManager : MonoBehaviour
 
         GUILayout.EndArea();
     }
+    #endregion
 }

@@ -34,32 +34,48 @@ public class MeleeCube : UnitBase
 
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
-        if (isEnemy) return; // Enemy check
+        if (isEnemy) return; // 自身是敌人则不响应命令
 
         // 重置攻击状态
         isAttacking = false;
         attackTarget = null;
 
-        if (targetObject != null && targetObject.CompareTag("Enemy"))
+        if (targetObject != null)
         {
-            // 攻击命令
-            attackTarget = targetObject;
-            this.targetPosition = GetAttackPosition(targetObject.transform.position);
-            isMoving = true;
+            // 检查目标是否是敌人
+            bool targetIsEnemy = false;
+
+            // 只对UnitBase和BuildingBase进行判断
+            var unitTarget = targetObject.GetComponent<UnitBase>();
+            var buildingTarget = targetObject.GetComponent<BuildingBase>();
+
+            if (unitTarget != null)
+            {
+                targetIsEnemy = unitTarget.IsEnemy;
+            }
+            else if (buildingTarget != null)
+            {
+                targetIsEnemy = buildingTarget.IsEnemy;
+            }
+
+            if (targetIsEnemy)
+            {
+                // 攻击命令
+                attackTarget = targetObject;
+                this.targetPosition = GetAttackPosition(targetObject.transform.position);
+                isMoving = true;
+                return;
+            }
         }
-        else
-        {
-            // 移动命令
-            base.ReceiveCommand(targetPosition, targetObject);
-        }
+
+        // 移动命令
+        base.ReceiveCommand(targetPosition, targetObject);
     }
 
     protected override void MoveToTarget()
     {
-        base.MoveToTarget();
-
         // 到达目标位置后检查是否有攻击目标
-        if (!isMoving && attackTarget != null)
+        if (attackTarget != null)
         {
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
             {
@@ -67,11 +83,13 @@ public class MeleeCube : UnitBase
             }
             else
             {
-                // 目标移动了，重新计算攻击位置
                 targetPosition = GetAttackPosition(attackTarget.transform.position);
                 isMoving = true;
+                base.MoveToTarget();
             }
         }
+        else
+            base.MoveToTarget();
     }
 
     private Vector3 GetAttackPosition(Vector3 enemyPosition)

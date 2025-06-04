@@ -11,8 +11,7 @@ GameObject:
   - component: {fileID: 3602531589381918748}
   - component: {fileID: 3216186685281298341}
   - component: {fileID: 5488305006273667770}
-  - component: {fileID: 1218703036211546883}
-  m_Layer: 6
+  m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -84,27 +83,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1218703036211546883
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2735549490628931502}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3591241211840497902
 GameObject:
   m_ObjectHideFlags: 0
@@ -116,9 +94,10 @@ GameObject:
   - component: {fileID: 1237478730519306195}
   - component: {fileID: 5895427184441334117}
   - component: {fileID: 419478415359333579}
-  m_Layer: 6
+  - component: {fileID: 9023211567451490938}
+  m_Layer: 7
   m_Name: WorkerCube
-  m_TagString: Untagged
+  m_TagString: Selectable
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -171,7 +150,32 @@ MonoBehaviour:
   isEnemy: 0
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
   healthBarOffset: {x: 0, y: -40, z: 0}
+  collisionRadius: 0.5
+  collisionLayerMask:
+    serializedVersion: 2
+    m_Bits: 896
   resourceCarryCapacity: 5
   collectionRate: 1
-  fetchRange: 1
+  fetchRange: 1.4
   bodyRenderer: {fileID: 5488305006273667770}
+--- !u!135 &9023211567451490938
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3591241211840497902}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}

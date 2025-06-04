@@ -14,6 +14,10 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     [SerializeField] private GameObject healthBarPrefab;
     [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0);
 
+    [Header("Collision Settings")]
+    [SerializeField] private float collisionRadius = 1.5f; // 建筑碰撞半径
+    [SerializeField] private LayerMask collisionLayerMask; // 需要检测碰撞的层
+
     // 血条实例
     private GameObject healthBarInstance;
     private Slider healthBarSlider;
@@ -54,7 +58,14 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
 
-        gameObject.tag = isEnemy ? "Enemy" : "Ally";
+        gameObject.TryGetComponent<SphereCollider>(out var collider);
+        if (collider == null)
+        {
+            collider = gameObject.AddComponent<SphereCollider>();
+            collider.radius = collisionRadius;
+        }
+        gameObject.AddComponent<Rigidbody>().useGravity = false;
+        collider.isTrigger = true;
     }
 
     protected virtual void Update()
@@ -75,10 +86,33 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         }
     }
 
+    private void OnTriggerStay(Collider other)
+    {
+        if (!isMoving) return;
+        if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
+            return;
+
+        Vector3 otherPos = other.transform.position;
+        Vector3 myPos = transform.position;
+        Vector3 direction = new(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
+        if (direction.sqrMagnitude < Mathf.Epsilon)
+            direction = Vector3.forward;
+
+        float distance = direction.magnitude;
+        Vector3 normalizedDirection = direction / distance; 
+
+        float overlap = (collisionRadius + GetOtherCollisionRadius(other)) - distance;
+        if (overlap > 0)
+        {
+            Vector3 pushVector = -0.5f * overlap * normalizedDirection;
+            transform.position += pushVector;
+        }
+    }
+
     protected virtual void MoveToTarget()
     {
-        Vector2 targetXY = new (targetPosition.x, targetPosition.z),
-            transformXY = new (transform.position.x, transform.position.z);
+        Vector2 targetXY = new(targetPosition.x, targetPosition.z),
+            transformXY = new(transform.position.x, transform.position.z);
         Vector3 direction = (targetPosition - transform.position).normalized;
         direction.y = 0; // 保持Y轴不变
         if (Vector3.Distance(targetXY, transformXY) > 0.5f)
@@ -98,12 +132,20 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowUnitPanel(this);
+        }
     }
 
     public virtual void OnDeselect()
     {
         isSelected = false;
         selectionIndicator.SetActive(false);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.HideUnitPanel();
+        }
     }
 
     public virtual void OnDoubleClick()
@@ -136,8 +178,17 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         UpdateHealthBar();
         ShowHealthBar(true); // 受伤时显示血条
 
+        if (UIManager.Instance != null && UIManager.Instance.currentUnit == this)
+        {
+            UIManager.Instance.UpdateUnitHP(this);
+        }
+
         if (HP <= 0f)
+        {
+            OnDeselect();
+            SelectionManager.Instance.DeselectThis(this);
             Destroy(gameObject);
+        }
     }
 
     public void ShowHealthBar(bool show)
@@ -252,4 +303,26 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
             angle += 360f / segments;
         }
     }
+
+    #region Hitbox
+    private float GetOtherCollisionRadius(Collider other)
+    {
+        var unit = other.GetComponent<UnitBase>();
+        if (unit != null) return unit.GetCollisionRadius();
+
+        var building = other.GetComponent<BuildingBase>();
+        if (building != null) return building.GetCollisionRadius();
+
+        var resource = other.GetComponent<ResourceNode>();
+        if (resource != null) return resource.GetCollisionRadius();
+
+        return 1.0f; // 默认值
+    }
+
+    // 获取碰撞半径
+    public float GetCollisionRadius()
+    {
+        return collisionRadius;
+    }
+    #endregion
 }

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2364512731324970735}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Rallypoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -41,7 +41,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2440225578391655142}
   - component: {fileID: 5812109388157096125}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: ProductionQueue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -101,12 +101,12 @@ GameObject:
   - component: {fileID: 2846824875836340761}
   - component: {fileID: 3006896147546545337}
   - component: {fileID: 5118452756014102499}
-  - component: {fileID: 5562006599855153091}
   - component: {fileID: 2494857375852270031}
   - component: {fileID: 7507780605227181292}
-  m_Layer: 6
+  - component: {fileID: 788043096973694964}
+  m_Layer: 8
   m_Name: Barrack
-  m_TagString: Untagged
+  m_TagString: Selectable
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -179,29 +179,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!136 &5562006599855153091
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4876253518491697602}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &2494857375852270031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -232,13 +209,38 @@ MonoBehaviour:
   HP: 0
   maxHP: 100
   isEnemy: 1
-  buildCost: 100
+  costs: []
   buildTime: 10
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
   healthBarOffset: {x: 0, y: -40, z: 0}
+  collisionRadius: 0.5
+  collisionLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   productionQueue: {fileID: 5812109388157096125}
   spawnPoint: {fileID: 3391187661671743359}
   rallyPoint: {fileID: 2364512731324970735}
+--- !u!135 &788043096973694964
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4876253518491697602}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 1
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7277732592070539266
 GameObject:
   m_ObjectHideFlags: 0
@@ -248,7 +250,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3391187661671743359}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Spawnpoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}

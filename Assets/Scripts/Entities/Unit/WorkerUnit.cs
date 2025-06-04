@@ -47,6 +47,7 @@ public class WorkerUnit : UnitBase
         targetBase = null;
         
         ResourceNode node = targetObject.GetComponentInParent<ResourceNode>();
+        Debug.Log(node);
         MainBase mainBase = targetObject.GetComponentInParent<MainBase>();
 
         if (targetObject != null && node != null)
@@ -73,25 +74,29 @@ public class WorkerUnit : UnitBase
 
     protected override void MoveToTarget()
     {
-        base.MoveToTarget();
-        if (!isMoving && currentResourceNode != null && !isCollecting && !isDelivering)
+        if (currentResourceNode != null && !isCollecting && !isDelivering)
         {
             // Check if in range of resource node
             if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z),
                                new Vector2(targetPosition.x, targetPosition.z)) <= fetchRange)
             {
+                Debug.Log(currentResourceNode);
                 StartCollecting();
+                return;
             }
         }
-        else if (!isMoving && targetBase != null && isDelivering)
+        else if (targetBase != null && isDelivering)
         {
             // Check if in range of base
             if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z),
                                new Vector2(targetPosition.x, targetPosition.z)) <= fetchRange)
             {
                 DeliverResources();
+                return;
             }
         }
+
+        base.MoveToTarget();
     }
 
     #region Collecting Utils
@@ -100,7 +105,9 @@ public class WorkerUnit : UnitBase
         // Check if node depleted while moving
         if (currentResourceNode == null)
             return;
-
+        Debug.Log(1111);
+        targetPosition = transform.position;
+        isMoving = false;
         isCollecting = true;
         InvokeRepeating(nameof(CollectResource), collectionRate, collectionRate);
     }
@@ -139,6 +146,9 @@ public class WorkerUnit : UnitBase
     #region Easy AI For Repeatly Collection
     public int DeliverResources()
     {
+        targetPosition = transform.position;
+        isMoving = false;
+
         int delivered = currentAmount;
         ResourceManager.Instance.AddResources(currentType, delivered);
 
