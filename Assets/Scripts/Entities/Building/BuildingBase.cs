@@ -157,7 +157,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
             constructionProgress += Time.deltaTime / buildTime;
             HP = Mathf.Lerp(0f, maxHP, constructionProgress);
             UpdateHealthBar();
-            if (UIManager.Instance != null && UIManager.Instance.currentBuilding == this)
+            if (UIManager.Instance != null && UIManager.Instance.buildingUI.CurrentBuilding == this)
             {
                 UIManager.Instance.UpdateBuildingHP(this);
             }
@@ -235,7 +235,8 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         UpdateHealthBar();
         ShowHealthBar(true);
 
-        if (UIManager.Instance != null && UIManager.Instance.currentBuilding == this)
+        bool isPrevious = UIManager.Instance.buildingUI.CurrentBuilding == this;
+        if (UIManager.Instance != null && isPrevious)
         {
             UIManager.Instance.UpdateBuildingHP(this);
         }

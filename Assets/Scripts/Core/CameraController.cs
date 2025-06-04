@@ -9,7 +9,7 @@ public class CameraController : MonoBehaviour
     [SerializeField] private Vector2 panLimitMin = new(-50, -50);
     [SerializeField] private Vector2 panLimitMax = new(50, 50);
     [SerializeField] private float fixedHeight = 30f;
-    [SerializeField] Vector3 targetPoint = new(0, 0, -40);
+    [SerializeField] Vector3 spawnPoint = new(0, 0, -40);
 
     [Header("Zoom Settings")]
     [SerializeField] private float zoomSpeed = 20f;
@@ -27,14 +27,7 @@ public class CameraController : MonoBehaviour
     private void Awake()
     {
         cam = GetComponent<Camera>();
-        Vector3 cameraPosition = new(0, fixedHeight, 0)
-        {
-            z = targetPoint.z - (fixedHeight / Mathf.Tan(defaultVerticalAngle))
-        };
-
-        transform.position = cameraPosition;
-
-        transform.LookAt(targetPoint);
+        FocusOnTarget(spawnPoint);
         defaultRotation = transform.rotation;
         cam.fieldOfView = (minZoom + maxZoom) / 2f;
     }
@@ -165,6 +158,12 @@ public class CameraController : MonoBehaviour
 
     public void FocusOnTarget(Vector3 position)
     {
-        Debug.Log("Enable Focus");
+        Vector3 cameraPosition = new Vector3(
+            position.x,
+            fixedHeight,
+            position.z - (fixedHeight / Mathf.Tan(defaultVerticalAngle * Mathf.Deg2Rad)));
+
+        transform.position = cameraPosition;
+        transform.LookAt(position);
     }
 }

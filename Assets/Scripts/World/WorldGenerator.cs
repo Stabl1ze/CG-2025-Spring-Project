@@ -2,7 +2,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using static WorldGenerator.Clearing;
 
 public class WorldGenerator : MonoBehaviour
@@ -15,6 +14,7 @@ public class WorldGenerator : MonoBehaviour
     [Header("Generation Settings")]
     [SerializeField] private int mapSize = 100;
     [SerializeField] private Vector2 spawnCenter = new(0, -36);
+
     Vector3 spawnCenterV3 = new(0, 0, -36);
 
     [System.Serializable]
@@ -256,6 +256,12 @@ public class WorldGenerator : MonoBehaviour
     #region Tree Filling System
     private void FillTrees(List<Clearing> clearings)
     {
+        // 清理之前的树木数据
+        if (TreeManager.Instance != null)
+        {
+            TreeManager.Instance.ClearAllTrees();
+        }
+
         GameObject treesParent = new("Trees");
         int c_num = 0;
         int t_num = 0;
@@ -269,13 +275,30 @@ public class WorldGenerator : MonoBehaviour
                 if (!IsInAnyClearing(clearings, position))
                 {
                     t_num++;
-                    Instantiate(treePrefab, position, Quaternion.identity, treesParent.transform);
+                    GameObject tree = Instantiate(treePrefab, position, Quaternion.identity, treesParent.transform);
+
+                    // 确保树木预制体有ResourceNode组件
+                    ResourceNode treeResourceNode = tree.GetComponent<ResourceNode>();
+                    if (treeResourceNode == null)
+                    {
+                        Debug.LogWarning($"Tree prefab at {position} does not have ResourceNode component!");
+                        continue;
+                    }
+
+                    // 注册树木到TreeManager
+                    if (TreeManager.Instance != null)
+                    {
+                        TreeManager.Instance.RegisterTree(treeResourceNode, position);
+                    }
                 }
                 else
                     c_num++;
             }
         }
+
+        Debug.Log($"Generated {t_num} trees, {c_num} clearing cells");
     }
+    #endregion
 
     private bool IsInAnyClearing(List<Clearing> clearings, Vector3 position)
     {
@@ -289,7 +312,6 @@ public class WorldGenerator : MonoBehaviour
         }
         return false;
     }
-    #endregion
 
     #region Starting Buildings and Units
     private void SpawnStartingUnits()

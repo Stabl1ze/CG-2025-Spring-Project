@@ -47,7 +47,6 @@ public class WorkerUnit : UnitBase
         targetBase = null;
         
         ResourceNode node = targetObject.GetComponentInParent<ResourceNode>();
-        Debug.Log(node);
         MainBase mainBase = targetObject.GetComponentInParent<MainBase>();
 
         if (targetObject != null && node != null)

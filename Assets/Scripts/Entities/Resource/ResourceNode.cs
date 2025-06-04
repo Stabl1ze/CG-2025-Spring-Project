@@ -77,12 +77,21 @@ public class ResourceNode : MonoBehaviour, ISelectable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
+        bool isPrevious = UIManager.Instance.resourceNodeUI.CurrentResourceNode == this;
+        if (UIManager.Instance != null && isPrevious)
+        {
+            UIManager.Instance.UpdateResourceNodeDisplay(this);
+        }
     }
 
     public virtual void OnDeselect()
     {
         isSelected = false;
         selectionIndicator.SetActive(false);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.HideResourceNodePanel();
+        }
     }
 
     public virtual void OnDoubleClick()
@@ -132,7 +141,9 @@ public class ResourceNode : MonoBehaviour, ISelectable
 
     private void DepleteNode()
     {
-        if(gameObject != null)
+        OnDeselect();
+        SelectionManager.Instance.DeselectThis(this);
+        if (gameObject != null)
             Destroy(gameObject);
         Debug.Log($"{resourceType} node depleted");
     }

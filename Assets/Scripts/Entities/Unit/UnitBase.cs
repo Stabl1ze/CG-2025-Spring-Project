@@ -64,8 +64,12 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
             collider = gameObject.AddComponent<SphereCollider>();
             collider.radius = collisionRadius;
         }
-        gameObject.AddComponent<Rigidbody>().useGravity = false;
         collider.isTrigger = true;
+
+        gameObject.TryGetComponent<Rigidbody>(out var rigidbody);
+        if (rigidbody == null)
+            rigidbody = gameObject.AddComponent<Rigidbody>();
+        rigidbody.useGravity = false;
     }
 
     protected virtual void Update()
@@ -178,7 +182,8 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         UpdateHealthBar();
         ShowHealthBar(true); // 受伤时显示血条
 
-        if (UIManager.Instance != null && UIManager.Instance.currentUnit == this)
+        bool isPrevious = UIManager.Instance.unitUI.CurrentUnit == this;
+        if (UIManager.Instance != null && isPrevious)
         {
             UIManager.Instance.UpdateUnitHP(this);
         }
