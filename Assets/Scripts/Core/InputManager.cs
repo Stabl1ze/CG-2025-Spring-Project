@@ -223,6 +223,23 @@ public class InputManager : MonoBehaviour
                     SelectionManager.Instance.IssueCommand(hit.point, hit.collider.gameObject);
                 }
             }
+            return;
+        }
+
+        if (Input.GetKey(KeyCode.F))
+        {
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+            {
+                if (hit.collider.CompareTag(selectableTag))
+                {
+                    var tree = hit.collider.GetComponentInParent<TreeNode>();
+                    if (tree != null)
+                    {
+                        Destroy(tree.gameObject);
+                    }
+                }
+            }
         }
     }
 }

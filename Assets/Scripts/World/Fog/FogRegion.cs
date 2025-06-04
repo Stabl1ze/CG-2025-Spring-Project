@@ -7,7 +7,8 @@ public class FogRegion : MonoBehaviour
     private Vector2 center;
     private float radius;
 
-    public Vector2 Center => center; // 公共属性供外部访问
+    public Vector2 Center => center;
+    public float Radius => radius;
 
     public void Initialize(Vector2 center, float radius, GameObject fogPrefab)
     {
@@ -16,11 +17,11 @@ public class FogRegion : MonoBehaviour
 
         // 创建迷雾视觉
         fogCover = Instantiate(fogPrefab,
-            new Vector3(center.x, 0.1f, center.y),
+            new Vector3(center.x, 0.7f, center.y),
             Quaternion.identity,
             transform);
 
-        fogCover.transform.localScale = Vector3.one * radius * 2f;
+        fogCover.transform.localScale = new(2.1f * radius, 0.001f, 2.1f * radius);
         SetRevealed(false);
     }
 

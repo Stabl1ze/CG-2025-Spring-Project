@@ -15,6 +15,9 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private int mapSize = 100;
     [SerializeField] private Vector2 spawnCenter = new(0, -36);
 
+    [Header("Fog of War")]
+    [SerializeField] private FogOfWarSystem fogOfWarSystem;
+
     Vector3 spawnCenterV3 = new(0, 0, -36);
 
     [System.Serializable]
@@ -23,6 +26,7 @@ public class WorldGenerator : MonoBehaviour
         public Vector2 center;
         public float radius;
         public ClearingSize size;
+        public bool isSpawn;
 
         public enum ClearingSize { Small = 5, Medium = 8, Large = 12 }
     }
@@ -59,7 +63,7 @@ public class WorldGenerator : MonoBehaviour
 
     private IEnumerator GenerateWorldRoutine()
     {
-        // 异步加载主场景
+        // 加载场景
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("OverWorld");
 
         // 等待场景加载完成
@@ -72,16 +76,21 @@ public class WorldGenerator : MonoBehaviour
 
         // 生成空地
         List<Clearing> clearings = GenerateClearings();
-        Debug.Log($"Generated {clearings.Count} clearings");
 
         // 填充树木
         FillTrees(clearings);
 
         SpawnStartingUnits();
 
-        // 预留接口：后续可以在这里添加空地生成、资源生成等
-        // yield return GenerateClearings();
-        // yield return GenerateResources();
+        // 初始化战争迷雾系统
+        if (fogOfWarSystem != null)
+        {
+            fogOfWarSystem.Initialize(clearings, spawnCenter, (float)ClearingSize.Medium, mapSize);
+        }
+        else
+        {
+            Debug.LogWarning("FogOfWarSystem not assigned to WorldGenerator!");
+        }
     }
 
     private void GenerateBaseTerrain()
@@ -100,9 +109,7 @@ public class WorldGenerator : MonoBehaviour
         generatedTerrain.transform.position = new Vector3(-mapSize * 0.7f, 0, -mapSize * 0.7f);
 
         // 设置Terrain尺寸
-        generatedTerrain.terrainData.size = new Vector3(mapSize * 1.4f, 1, mapSize * 1.4f); // 高度设为600以容纳各种地形
-
-        Debug.Log($"Terrain generated at center: {spawnCenter}, size: {mapSize}x{mapSize}");
+        generatedTerrain.terrainData.size = new Vector3(mapSize * 1.4f, 1, mapSize * 1.4f);
     }
 
     // 预留的公开接口
@@ -119,7 +126,8 @@ public class WorldGenerator : MonoBehaviour
             {
                 center = spawnCenter,
                 size = ClearingSize.Medium,
-                radius = (float)ClearingSize.Medium
+                radius = (float)ClearingSize.Medium,
+                isSpawn = true
             }
         };
 
@@ -205,7 +213,8 @@ public class WorldGenerator : MonoBehaviour
             {
                 center = candidate,
                 radius = chosenRadius,
-                size = chosenSize
+                size = chosenSize,
+                isSpawn = false
             });
 
             switch (chosenSize)
@@ -263,8 +272,6 @@ public class WorldGenerator : MonoBehaviour
         }
 
         GameObject treesParent = new("Trees");
-        int c_num = 0;
-        int t_num = 0;
 
         for (int x = 0; x < mapSize; x++)
         {
@@ -274,7 +281,6 @@ public class WorldGenerator : MonoBehaviour
                 // 检查是否在任何空地内
                 if (!IsInAnyClearing(clearings, position))
                 {
-                    t_num++;
                     GameObject tree = Instantiate(treePrefab, position, Quaternion.identity, treesParent.transform);
 
                     // 确保树木预制体有ResourceNode组件
@@ -291,12 +297,8 @@ public class WorldGenerator : MonoBehaviour
                         TreeManager.Instance.RegisterTree(treeResourceNode, position);
                     }
                 }
-                else
-                    c_num++;
             }
         }
-
-        Debug.Log($"Generated {t_num} trees, {c_num} clearing cells");
     }
     #endregion
 

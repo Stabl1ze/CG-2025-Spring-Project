@@ -1,23 +1,22 @@
 using UnityEngine;
-using static ResourceNode;
 
 public class ResourceNode : MonoBehaviour, ISelectable
 {
     [Header("Resource Settings")]
-    [SerializeField] private ResourceManager.ResourceType resourceType 
+    [SerializeField] protected ResourceManager.ResourceType resourceType 
         = ResourceManager.ResourceType.LineR;
-    [SerializeField] private int resourceAmount = 100;
-    [SerializeField] private int collectAmount = 2;
+    [SerializeField] protected int resourceAmount = 100;
+    [SerializeField] protected int collectAmount = 2;
 
     [Header("Collision Settings")]
-    [SerializeField] private float collisionRadius = 2.0f; // Åö×²°ë¾¶
-    [SerializeField] private LayerMask collisionLayerMask; // ÐèÒª¼ì²âÅö×²µÄ²ã
+    [SerializeField] protected float collisionRadius = 2.0f; // Åö×²°ë¾¶
+    [SerializeField] protected LayerMask collisionLayerMask; // ÐèÒª¼ì²âÅö×²µÄ²ã
 
     // Selection visual
-    private GameObject selectionIndicator;
-    private Color selectionColor = Color.green;
-    private readonly float indicatorRadius = 1.0f;
-    private readonly float indicatorHeightOffset = 0.1f;
+    protected GameObject selectionIndicator;
+    protected Color selectionColor = Color.green;
+    protected readonly float indicatorRadius = 1.0f;
+    protected readonly float indicatorHeightOffset = 0.1f;
 
     protected bool isSelected = false;
 
@@ -37,7 +36,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         collider.isTrigger = true;
     }
 
-    private void OnTriggerStay(Collider other)
+    protected void OnTriggerStay(Collider other)
     {
         if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
             return;
@@ -124,12 +123,8 @@ public class ResourceNode : MonoBehaviour, ISelectable
     {
         int collected = Mathf.Min(collectAmount, resourceAmount);
         resourceAmount -= collected;
-        Debug.Log($"{gameObject.name} node collected");
 
-        if (resourceAmount <= 0)
-        {
-            DepleteNode();
-        }
+        if (resourceAmount <= 0) DepleteNode();
 
         ResourceManager.ResourcePack pack = new()
         {
@@ -139,7 +134,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         return pack;
     }
 
-    private void DepleteNode()
+    protected virtual void DepleteNode()
     {
         OnDeselect();
         SelectionManager.Instance.DeselectThis(this);
@@ -148,7 +143,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         Debug.Log($"{resourceType} node depleted");
     }
 
-    private void CreateCircleIndicator()
+    protected void CreateCircleIndicator()
     {
         selectionIndicator = new GameObject("SelectionIndicator");
         selectionIndicator.transform.SetParent(transform);
@@ -179,7 +174,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
     }
 
     #region Hitbox
-    private float GetOtherCollisionRadius(Collider other)
+    protected float GetOtherCollisionRadius(Collider other)
     {
         other.TryGetComponent<UnitBase>(out var unit);
         if (unit != null) return unit.GetCollisionRadius();

@@ -61,7 +61,6 @@ public class TreeManager : MonoBehaviour
         {
             treePositions.Remove(gridPos);
             treeNodes.Remove(gridPos);
-
             // 触发事件通知战争迷雾系统
             OnTreeRemoved?.Invoke(gridPos);
         }
