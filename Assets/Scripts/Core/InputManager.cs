@@ -7,7 +7,7 @@ using UnityEngine.EventSystems;
 public class InputManager : MonoBehaviour
 {
     [Header("Selection Settings")]
-    [SerializeField] private LayerMask selectableLayer;
+    [SerializeField] private string selectableTag = "Selectable";
     [SerializeField] private float doubleClickTime = 0.3f;
 
     [Header("Box Selection Settings")]
@@ -60,19 +60,22 @@ public class InputManager : MonoBehaviour
             lastClickTime = Time.time;
 
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, selectableLayer))
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
             {
-                ISelectable selectable = hit.collider.GetComponent<ISelectable>();
-                if (selectable != null)
+                if (hit.collider.CompareTag(selectableTag))
                 {
-                    if (timeSinceLastClick <= doubleClickTime)
+                    ISelectable selectable = hit.collider.GetComponentInParent<ISelectable>();
+                    if (selectable != null)
                     {
-                        selectable.OnDoubleClick();
-                    }
-                    else
-                    {
-                        selectable.OnSelect();
-                        SelectionManager.Instance.AddToSelection(selectable);
+                        if (timeSinceLastClick <= doubleClickTime)
+                        {
+                            selectable.OnDoubleClick();
+                        }
+                        else
+                        {
+                            selectable.OnSelect();
+                            SelectionManager.Instance.AddToSelection(selectable);
+                        }
                     }
                 }
             }
@@ -218,6 +221,23 @@ public class InputManager : MonoBehaviour
                 if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
                 {
                     SelectionManager.Instance.IssueCommand(hit.point, hit.collider.gameObject);
+                }
+            }
+            return;
+        }
+
+        if (Input.GetKey(KeyCode.F))
+        {
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+            {
+                if (hit.collider.CompareTag(selectableTag))
+                {
+                    var tree = hit.collider.GetComponentInParent<TreeNode>();
+                    if (tree != null)
+                    {
+                        Destroy(tree.gameObject);
+                    }
                 }
             }
         }

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 369667735810365691}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Rallypoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -45,9 +45,9 @@ GameObject:
   - component: {fileID: 1723903249306160707}
   - component: {fileID: 2578574660961239858}
   - component: {fileID: 8553137442992143027}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Base
-  m_TagString: Untagged
+  m_TagString: Selectable
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -61,7 +61,7 @@ Transform:
   m_GameObject: {fileID: 5375289916878808632}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 9.87, y: 1.31, z: 3.06}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -173,7 +173,7 @@ MonoBehaviour:
   HP: 0
   maxHP: 100
   isEnemy: 0
-  buildCost: 100
+  costs: []
   buildTime: 10
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
   healthBarOffset: {x: 0, y: -40, z: 0}
@@ -191,7 +191,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8946678946068845543}
   - component: {fileID: 7608149042631107059}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: ProductionQueue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -243,7 +243,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4991353616640214418}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Spawnpoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}

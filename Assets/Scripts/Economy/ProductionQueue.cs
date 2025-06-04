@@ -31,14 +31,13 @@ public class ProductionQueue : MonoBehaviour
 
     public bool TryAddToQueue(int itemIndex)
     {
-        if (!building.IsBuilt()) return false;
+        if (building.IsEnemy || !building.IsBuilt()) return false;
         if (itemIndex < 0 || itemIndex >= productionItems.Length) return false;
         if (!CanAddToQueue()) return false;
 
         ProductionItem item = productionItems[itemIndex];
 
         // 检查资源是否足够
-        Debug.Log(item.costs);
         foreach (var cost in item.costs)
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))

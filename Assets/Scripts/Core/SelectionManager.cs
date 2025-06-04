@@ -24,10 +24,15 @@ public class SelectionManager : MonoBehaviour
         selectedObjects.Add(selectable);
     }
 
+    public void DeselectThis(ISelectable selectable)
+    {
+        selectedObjects.Remove(selectable);
+    }
+
     public void DeselectAll()
     {
         foreach (ISelectable selectable in selectedObjects)
-            selectable.OnDeselect();
+            selectable?.OnDeselect();
         selectedObjects.Clear();
     }
 

@@ -6,19 +6,18 @@ public class CameraController : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float panSpeed = 20f;
     [SerializeField] private float panBorderThickness = 10f;
-    [SerializeField] private Vector2 panLimitMin = new Vector2(-50, -50);
-    [SerializeField] private Vector2 panLimitMax = new Vector2(50, 50);
+    [SerializeField] private Vector2 panLimitMin = new(-50, -50);
+    [SerializeField] private Vector2 panLimitMax = new(50, 50);
     [SerializeField] private float fixedHeight = 30f;
+    [SerializeField] Vector3 spawnPoint = new(0, 0, -40);
 
     [Header("Zoom Settings")]
     [SerializeField] private float zoomSpeed = 20f;
     [SerializeField] private float minZoom = 5f;
-    [SerializeField] private float maxZoom = 50f;
+    [SerializeField] private float maxZoom = 30f;
 
     [Header("Rotation Settings")]
     [SerializeField] private float horizontalRotationSpeed = 100f;
-    [SerializeField] private float minVerticalAngle = 20f;
-    [SerializeField] private float maxVerticalAngle = 80f;
     [SerializeField] private float defaultVerticalAngle = 45f;
 
     private Quaternion defaultRotation;
@@ -28,15 +27,9 @@ public class CameraController : MonoBehaviour
     private void Awake()
     {
         cam = GetComponent<Camera>();
-        defaultRotation = Quaternion.Euler(defaultVerticalAngle, 0, 0);
-        transform.rotation = defaultRotation;
+        FocusOnTarget(spawnPoint);
+        defaultRotation = transform.rotation;
         cam.fieldOfView = (minZoom + maxZoom) / 2f;
-
-        transform.position = new Vector3(
-            transform.position.x,
-            fixedHeight,
-            transform.position.z
-        );
     }
 
     private void Update()
@@ -67,11 +60,34 @@ public class CameraController : MonoBehaviour
         if (Input.mousePosition.x <= panBorderThickness)
             pos -= Vector3.ProjectOnPlane(transform.right, Vector3.up).normalized * panSpeed * Time.deltaTime;
 
-        pos.x = Mathf.Clamp(pos.x, panLimitMin.x, panLimitMax.x);
-        pos.z = Mathf.Clamp(pos.z, panLimitMin.y, panLimitMax.y);
-        pos.y = fixedHeight;
+        Vector3 groundHitPoint = GetGroundHitPoint();
 
+        // 检查地面交点是否超出限制范围
+        if (groundHitPoint.x < panLimitMin.x)
+            pos.x += panLimitMin.x - groundHitPoint.x;
+        if (groundHitPoint.x > panLimitMax.x)
+            pos.x -= groundHitPoint.x - panLimitMax.x;
+        if (groundHitPoint.z < panLimitMin.y)
+            pos.z += panLimitMin.y - groundHitPoint.z;
+        if (groundHitPoint.z > panLimitMax.y)
+            pos.z -= groundHitPoint.z - panLimitMax.y;
+
+        pos.y = fixedHeight;
         transform.position = pos;
+    }
+
+    private Vector3 GetGroundHitPoint()
+    {
+        // 从相机中心发射射线检测地形交点
+        Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+
+        if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+        {
+            return hit.point;
+        }
+
+        // 如果没有检测到交点，返回相机正下方的地面点
+        return new Vector3(transform.position.x, 0, transform.position.z);
     }
 
     private void HandleZoom()
@@ -102,9 +118,8 @@ public class CameraController : MonoBehaviour
     {
         // 从相机中心发射射线检测地形交点
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
-        RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit, Mathf.Infinity))
+        if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
         {
             Vector3 focusPoint = hit.point;
             float currentDistance = Vector3.Distance(transform.position, focusPoint);
@@ -143,6 +158,12 @@ public class CameraController : MonoBehaviour
 
     public void FocusOnTarget(Vector3 position)
     {
-        Debug.Log("Enable Focus");
+        Vector3 cameraPosition = new Vector3(
+            position.x,
+            fixedHeight,
+            position.z - (fixedHeight / Mathf.Tan(defaultVerticalAngle * Mathf.Deg2Rad)));
+
+        transform.position = cameraPosition;
+        transform.LookAt(position);
     }
 }

@@ -5,8 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - MainCanvas
-  - Ally
-  - Enemy
+  - Selectable
   layers:
   - Default
   - TransparentFX
@@ -14,10 +13,10 @@ TagManager:
   - 
   - Water
   - UI
-  - Selectable
   - Ground
-  - 
-  - 
+  - Units
+  - Buildings
+  - Resources
   - 
   - 
   - 
@@ -46,10 +45,4 @@ TagManager:
     locked: 0
   - name: UI
     uniqueID: 1167949505
-    locked: 0
-  - name: Selectable
-    uniqueID: 857647575
-    locked: 0
-  - name: Ground
-    uniqueID: 3340051235
     locked: 0
