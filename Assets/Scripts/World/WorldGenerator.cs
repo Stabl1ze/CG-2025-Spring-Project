@@ -46,6 +46,13 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private WorkerUnit workerPrefab;
     [SerializeField] private MainBase basePrefab;
 
+    [Header("Ground Material Settings")]
+    [SerializeField] private Material groundMaterial;
+    [SerializeField] private Color color1 = Color.white;
+    [SerializeField] private Color color2 = Color.black;
+    [SerializeField] private float cellSize = 1f; // 每个格子1单位
+    [SerializeField] private float groundSize = 100f; // 地面总大小100单位
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -111,11 +118,45 @@ public class WorldGenerator : MonoBehaviour
         generatedTerrain = Instantiate(terrainPrefab, spawnCenter, Quaternion.identity);
         generatedTerrain.name = "GeneratedTerrain";
 
-        // 将地形居中（原点在中心）
+        // 调整地形位置和大小
         generatedTerrain.transform.position = new Vector3(-mapSize * 0.7f, 0, -mapSize * 0.7f);
-
-        // 设置Terrain尺寸
         generatedTerrain.terrainData.size = new Vector3(mapSize * 1.4f, 1, mapSize * 1.4f);
+
+        // 应用棋盘格材质
+        ApplyCheckerboardMaterial();
+    }
+
+    private void ApplyCheckerboardMaterial()
+    {
+        // 创建棋盘格材质
+        Material checkerMat = new Material(Shader.Find("Standard"));
+        checkerMat.name = "CheckerboardMaterial";
+
+        // 创建小尺寸纹理
+        int textureSize = 8; // 小纹理即可
+        Texture2D texture = new Texture2D(textureSize, textureSize)
+        {
+            wrapMode = TextureWrapMode.Repeat,
+            filterMode = FilterMode.Point
+        };
+
+        // 填充棋盘格图案
+        for (int y = 0; y < textureSize; y++)
+        {
+            for (int x = 0; x < textureSize; x++)
+            {
+                bool isColor1 = ((x / (textureSize / 2) + y / (textureSize / 2)) % 2) == 0;
+                texture.SetPixel(x, y, isColor1 ? color1 : color2);
+            }
+        }
+        texture.Apply();
+
+        // 设置材质属性
+        checkerMat.mainTexture = texture;
+        checkerMat.mainTextureScale = new Vector2(groundSize / cellSize, groundSize / cellSize);
+
+        // 应用材质到地形
+        generatedTerrain.materialTemplate = checkerMat;
     }
 
     // 预留的公开接口

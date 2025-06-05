@@ -4403,6 +4403,11 @@ MonoBehaviour:
   treePrefab: {fileID: 6424093516073830202, guid: 0e1e61dabd0ef424b8378c2415d67bb0, type: 3}
   workerPrefab: {fileID: 419478415359333579, guid: 62eba15ea0d76424cb5480e167af3ef6, type: 3}
   basePrefab: {fileID: 9046429661322279194, guid: d1871e92dffb303479d0bdc8530eb44e, type: 3}
+  groundMaterial: {fileID: 0}
+  color1: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+  color2: {r: 0.54901963, g: 0.54901963, b: 0.54901963, a: 1}
+  cellSize: 1
+  groundSize: 100
 --- !u!4 &1209023931
 Transform:
   m_ObjectHideFlags: 0

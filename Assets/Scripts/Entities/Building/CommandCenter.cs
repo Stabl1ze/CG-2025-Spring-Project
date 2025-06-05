@@ -4,8 +4,8 @@ using System.Collections;
 public class MainBase : ProductionBuilding
 {
     [Header("Main Base Settings")]
-    [SerializeField] private float selfHealing = 10f; // 每秒恢复量
-    [SerializeField] private float healInterval = 1f; // 恢复间隔(秒)
+    [SerializeField] private float selfHealing = 10f;
+    [SerializeField] private float healInterval = 1f;
 
     private float healTimer = 0f;
 
@@ -35,7 +35,6 @@ public class MainBase : ProductionBuilding
         SetHP(Mathf.Min(newHP, GetMaxHP()));
         UpdateHealthBar();
 
-        // 如果被选中则更新UI
         if (UIManager.Instance?.buildingUI.CurrentBuilding == this)
         {
             UIManager.Instance.UpdateBuildingHP(this);

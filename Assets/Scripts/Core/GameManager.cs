@@ -40,7 +40,6 @@ public class GameManager : MonoBehaviour
         CurrentGameState = newState;
         DebugLog($"Game state changed to: {newState}");
         
-        // 这里可以添加状态变化时的额外逻辑
         switch (newState)
         {
             case GameState.Playing:
@@ -65,7 +64,6 @@ public class GameManager : MonoBehaviour
         return debugMode;
     }
     
-    // 示例方法 - 可以根据需要扩展
     public void NotifyGameOver(bool playerWon)
     {
         ChangeGameState(GameState.GameOver);

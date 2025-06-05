@@ -62,7 +62,6 @@ public class CameraController : MonoBehaviour
 
         Vector3 groundHitPoint = GetGroundHitPoint();
 
-        // 检查地面交点是否超出限制范围
         if (groundHitPoint.x < panLimitMin.x)
             pos.x += panLimitMin.x - groundHitPoint.x;
         if (groundHitPoint.x > panLimitMax.x)
@@ -78,7 +77,6 @@ public class CameraController : MonoBehaviour
 
     private Vector3 GetGroundHitPoint()
     {
-        // 从相机中心发射射线检测地形交点
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
 
         if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
@@ -86,7 +84,6 @@ public class CameraController : MonoBehaviour
             return hit.point;
         }
 
-        // 如果没有检测到交点，返回相机正下方的地面点
         return new Vector3(transform.position.x, 0, transform.position.z);
     }
 
@@ -116,7 +113,6 @@ public class CameraController : MonoBehaviour
 
     private void RotateAroundFocusPoint(float horizontalInput)
     {
-        // 从相机中心发射射线检测地形交点
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
 
         if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
@@ -124,28 +120,22 @@ public class CameraController : MonoBehaviour
             Vector3 focusPoint = hit.point;
             float currentDistance = Vector3.Distance(transform.position, focusPoint);
 
-            // 保存当前垂直角度
             float currentVerticalAngle = transform.eulerAngles.x;
 
-            // 水平旋转
             transform.RotateAround(focusPoint, Vector3.up, horizontalInput);
 
-            // 保持相机高度不变
             Vector3 newPosition = transform.position;
             newPosition.y = fixedHeight;
             transform.position = newPosition;
 
-            // 调整距离以保持与焦点距离不变
             Vector3 direction = (transform.position - focusPoint).normalized;
             transform.position = focusPoint + direction * currentDistance;
 
-            // 恢复垂直角度
             Vector3 euler = transform.eulerAngles;
             transform.eulerAngles = new Vector3(currentVerticalAngle, euler.y, euler.z);
         }
         else
         {
-            // 如果没有检测到交点，使用默认旋转方式
             transform.Rotate(0, horizontalInput, 0, Space.World);
         }
     }

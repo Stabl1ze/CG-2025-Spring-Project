@@ -37,14 +37,12 @@ public class ProductionQueue : MonoBehaviour
 
         ProductionItem item = productionItems[itemIndex];
 
-        // 检查资源是否足够
         foreach (var cost in item.costs)
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))
                 return false;
         }
 
-        // 扣除资源
         foreach (var cost in item.costs)
         {
             ResourceManager.Instance.SpendResources(cost.type, cost.amount);

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -19,6 +18,7 @@ public class InputManager : MonoBehaviour
     private float lastClickTime;
     private Vector3 boxSelectionStart;
     private bool isBoxSelecting;
+    public static bool IsInBuildMode { get; set; }
 
     private void Awake()
     {
@@ -36,12 +36,15 @@ public class InputManager : MonoBehaviour
         if (GameManager.Instance.CurrentGameState != GameManager.GameState.Playing)
             return;
 
+        if (IsInBuildMode) return;
+
         if (EventSystem.current.IsPointerOverGameObject())
             return;
 
         HandleSelectionInput();
         HandleCommandInput();
         HandleBoxSelectionInput();
+        HandelEscInput();
     }
 
     private void OnGUI()
@@ -51,7 +54,7 @@ public class InputManager : MonoBehaviour
 
     private void HandleSelectionInput()
     {
-        if (Input.GetMouseButtonDown(0)) // 左键点击
+        if (Input.GetMouseButtonDown(0))
         {
             // Cancel previous selection
             SelectionManager.Instance.DeselectAll();
@@ -213,7 +216,7 @@ public class InputManager : MonoBehaviour
 
     private void HandleCommandInput()
     {
-        if (Input.GetMouseButtonDown(1)) // 右键命令
+        if (Input.GetMouseButtonDown(1))
         {
             if (SelectionManager.Instance.HasSelection())
             {
@@ -240,6 +243,17 @@ public class InputManager : MonoBehaviour
                     }
                 }
             }
+        }
+    }
+
+    private void HandelEscInput()
+    {
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (!UIManager.Instance.escUI.IsActive)
+                UIManager.Instance.ShowEscPanel();
+            else
+                UIManager.Instance.HideEscPanel();
         }
     }
 }

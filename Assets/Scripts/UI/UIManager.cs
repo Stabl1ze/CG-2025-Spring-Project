@@ -11,6 +11,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] public BuildingUI buildingUI;
     [SerializeField] public ResourceNodeUI resourceNodeUI;
     [SerializeField] public ConstructionUI constructionUI;
+    [SerializeField] public EscUI escUI;
 
     private readonly List<IUIComponent> allUIComponents = new();
 
@@ -35,6 +36,7 @@ public class UIManager : MonoBehaviour
         if (unitUI != null) allUIComponents.Add(unitUI);
         if (buildingUI != null) allUIComponents.Add(buildingUI);
         if (resourceNodeUI != null) allUIComponents.Add(resourceNodeUI);
+        if (escUI != null) allUIComponents.Add(escUI);
 
         // Initialize each component
         foreach (var component in allUIComponents)
@@ -66,6 +68,9 @@ public class UIManager : MonoBehaviour
 
     public void ShowConstructionPanel() => constructionUI?.ShowConstructionPanel();
     public void HideConstructionPanel() => constructionUI?.Hide();
+
+    public void ShowEscPanel() => escUI?.Show();
+    public void HideEscPanel() => escUI?.Hide();
     #endregion
 
     #region Minimap Implementation

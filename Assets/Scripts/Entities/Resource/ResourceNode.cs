@@ -9,8 +9,8 @@ public class ResourceNode : MonoBehaviour, ISelectable
     [SerializeField] protected int collectAmount = 2;
 
     [Header("Collision Settings")]
-    [SerializeField] protected float collisionRadius = 2.0f; // 碰撞半径
-    [SerializeField] protected LayerMask collisionLayerMask; // 需要检测碰撞的层
+    [SerializeField] protected float collisionRadius = 2.0f;
+    [SerializeField] protected LayerMask collisionLayerMask;
 
     // Selection visual
     protected GameObject selectionIndicator;
@@ -41,16 +41,13 @@ public class ResourceNode : MonoBehaviour, ISelectable
         if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
             return;
 
-        // 提前获取碰撞半径 (避免重复计算)
         float otherRadius = GetOtherCollisionRadius(other);
         float totalRadius = collisionRadius + otherRadius;
 
-        // 计算水平方向向量 (忽略Y轴)
         Vector3 otherPos = other.transform.position;
         Vector3 myPos = transform.position;
         Vector3 direction = new Vector3(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
 
-        // 处理零向量情况
         if (direction.sqrMagnitude < 0.001f)
         {
             direction = Vector3.forward;

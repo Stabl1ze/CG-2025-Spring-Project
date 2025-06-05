@@ -6,7 +6,7 @@ public class MeleeUnit : UnitBase
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float attackCooldown = 2f;
     [SerializeField] private int attackDamage = 10;
-    [SerializeField] private float attackRotationSpeed = 720f; // 每秒旋转度数
+    [SerializeField] private float attackRotationSpeed = 720f;
 
     [Header("AI Settings")]
     [SerializeField] private float sensingRange = 5f;
@@ -23,13 +23,11 @@ public class MeleeUnit : UnitBase
 
         if (isEnemy)
         {
-            // 如果没有当前目标或目标已无效，则寻找新目标
             if (attackTarget == null || !attackTarget.activeInHierarchy)
             {
                 FindNearestEnemy();
             }
 
-            // 如果有目标且不在攻击中，则处理移动/攻击逻辑
             if (attackTarget != null && !isAttacking)
             {
                 HandleEnemyAI();
@@ -42,7 +40,6 @@ public class MeleeUnit : UnitBase
         }
         else if (attackTarget != null && !isMoving)
         {
-            // 检查是否在攻击范围内
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
             {
                 StartAttack();
@@ -52,18 +49,15 @@ public class MeleeUnit : UnitBase
 
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
-        if (isEnemy) return; // 自身是敌人则不响应命令
+        if (isEnemy) return;
 
-        // 重置攻击状态
         isAttacking = false;
         attackTarget = null;
 
         if (targetObject != null)
         {
-            // 检查目标是否是敌人
             bool targetIsEnemy = false;
 
-            // 只对UnitBase和BuildingBase进行判断
             var unitTarget = targetObject.GetComponent<UnitBase>();
             var buildingTarget = targetObject.GetComponent<BuildingBase>();
 
@@ -78,7 +72,6 @@ public class MeleeUnit : UnitBase
 
             if (targetIsEnemy)
             {
-                // 攻击命令
                 attackTarget = targetObject;
                 this.targetPosition = GetAttackPosition(targetObject.transform.position);
                 isMoving = true;
@@ -86,13 +79,11 @@ public class MeleeUnit : UnitBase
             }
         }
 
-        // 移动命令
         base.ReceiveCommand(targetPosition, targetObject);
     }
 
     protected override void MoveToTarget()
     {
-        // 到达目标位置后检查是否有攻击目标
         if (attackTarget != null)
         {
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
@@ -112,9 +103,8 @@ public class MeleeUnit : UnitBase
 
     private Vector3 GetAttackPosition(Vector3 enemyPosition)
     {
-        // 计算攻击位置（敌人位置减去攻击方向乘以攻击距离）
         Vector3 attackDirection = (transform.position - enemyPosition).normalized;
-        return enemyPosition + attackDirection * (attackRange * 0.2f); // 稍微留点余地
+        return enemyPosition + attackDirection * (attackRange * 0.2f);
     }
 
     private void StartAttack()
@@ -132,11 +122,9 @@ public class MeleeUnit : UnitBase
     {
         attackProgress += Time.deltaTime;
 
-        // 旋转攻击动画
         float rotationAmount = attackRotationSpeed * Time.deltaTime;
         transform.Rotate(Vector3.up, rotationAmount);
 
-        // 动画完成
         if (attackProgress >= 1f)
         {
             CompleteAttack();
@@ -148,7 +136,6 @@ public class MeleeUnit : UnitBase
         isAttacking = false;
         transform.rotation = originalRotation;
 
-        // 应用伤害
         if (attackTarget != null && Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
         {
             if (attackTarget.TryGetComponent<IDamageable>(out var damageable))
@@ -157,7 +144,6 @@ public class MeleeUnit : UnitBase
             }
         }
 
-        // 如果目标仍然存在，继续攻击
         if (attackTarget != null)
         {
             StartAttack();
@@ -170,18 +156,15 @@ public class MeleeUnit : UnitBase
 
         if (distanceToTarget <= attackRange)
         {
-            // 在攻击范围内则直接攻击
             StartAttack();
         }
         else if (distanceToTarget <= sensingRange)
         {
-            // 在感知范围内但不在攻击范围内，则移动靠近目标
             targetPosition = GetAttackPosition(attackTarget.transform.position);
             isMoving = true;
         }
         else
         {
-            // 超出感知范围则放弃目标
             attackTarget = null;
         }
     }
@@ -194,7 +177,6 @@ public class MeleeUnit : UnitBase
 
         foreach (var hitCollider in hitColliders)
         {
-            // 检查是否是有效敌人（非己方单位/建筑）
             if (IsValidEnemyTarget(hitCollider.gameObject, out var damageable))
             {
                 float distance = Vector3.Distance(transform.position, hitCollider.transform.position);
@@ -213,16 +195,13 @@ public class MeleeUnit : UnitBase
     {
         damageable = null;
 
-        // 检查是否可攻击
         if (!target.TryGetComponent<IDamageable>(out damageable))
             return false;
 
-        // 检查是否是己方单位
         var unit = target.GetComponent<UnitBase>();
         if (unit != null && unit.IsEnemy == isEnemy)
             return false;
 
-        // 检查是否是己方建筑
         var building = target.GetComponent<BuildingBase>();
         if (building != null && building.IsEnemy == isEnemy)
             return false;
