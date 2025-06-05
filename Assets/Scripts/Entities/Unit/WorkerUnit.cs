@@ -98,6 +98,30 @@ public class WorkerUnit : UnitBase
         base.MoveToTarget();
     }
 
+    #region ISelectable Implements
+    public override void OnSelect()
+    {
+        isSelected = true;
+        selectionIndicator.SetActive(true);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowUnitPanel(this);
+            UIManager.Instance.ShowConstructionPanel();
+        }
+    }
+
+    public override void OnDeselect()
+    {
+        isSelected = false;
+        selectionIndicator.SetActive(false);
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.HideUnitPanel();
+            UIManager.Instance.HideConstructionPanel();
+        }
+    }
+    #endregion
+
     #region Collecting Utils
     private void StartCollecting()
     {
@@ -197,7 +221,7 @@ public class WorkerUnit : UnitBase
             if (isCarrying)
             {
                 if (currentType == ResourceManager.ResourceType.LineR)
-                    bodyRenderer.material.color = Color.black;
+                    bodyRenderer.material.color = Color.green;
                 if (currentType == ResourceManager.ResourceType.FaceR)
                     bodyRenderer.material.color = Color.blue;
                 if (currentType == ResourceManager.ResourceType.CubeR)

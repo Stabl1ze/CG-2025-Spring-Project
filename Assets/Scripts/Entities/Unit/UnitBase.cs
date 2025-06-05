@@ -1,6 +1,6 @@
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 [RequireComponent(typeof(Outline))]
 public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
@@ -28,10 +28,10 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     protected float rotationSpeed = 10f;
     
     // Selection visual
-    private GameObject selectionIndicator;
-    private Color selectionColor = Color.green;
-    private readonly float indicatorRadius = 1.0f;
-    private readonly float indicatorHeightOffset = 0.1f;
+    protected GameObject selectionIndicator;
+    protected Color selectionColor = Color.green;
+    protected readonly float indicatorRadius = 1.0f;
+    protected readonly float indicatorHeightOffset = 0.1f;
 
     protected bool isSelected = false;
     protected bool isMoving = false;
@@ -53,6 +53,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 
         // 创建血条
         CreateHealthBar();
+        ShowHealthBar(false);
 
         // 设置选择指示器
         CreateCircleIndicator();
@@ -136,6 +137,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
+        ShowHealthBar(true);
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ShowUnitPanel(this);
@@ -146,6 +148,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         isSelected = false;
         selectionIndicator.SetActive(false);
+        ShowHealthBar(false);
         if (UIManager.Instance != null)
         {
             UIManager.Instance.HideUnitPanel();
@@ -181,6 +184,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         HP -= damage;
         UpdateHealthBar();
         ShowHealthBar(true); // 受伤时显示血条
+        StartCoroutine(HideHealthBarAfterDelay(3f));
 
         bool isPrevious = UIManager.Instance.unitUI.CurrentUnit == this;
         if (UIManager.Instance != null && isPrevious)
@@ -220,6 +224,15 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     public float GetMaxHP()
     {
         return maxHP;
+    }
+    public void SetHP(float hp)
+    {
+        HP = hp;
+    }
+
+    public void SetMaxHP(float max)
+    {
+        maxHP = max;
     }
     #endregion
 
@@ -330,4 +343,15 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         return collisionRadius;
     }
     #endregion
+
+    public void SetEnemy()
+    {
+        isEnemy = true;
+    }
+
+    private IEnumerator HideHealthBarAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ShowHealthBar(false);
+    }
 }

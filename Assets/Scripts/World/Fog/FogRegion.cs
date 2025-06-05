@@ -17,7 +17,7 @@ public class FogRegion : MonoBehaviour
 
         // ¥¥Ω®√‘ŒÌ ”æı
         fogCover = Instantiate(fogPrefab,
-            new Vector3(center.x, 0.7f, center.y),
+            new Vector3(center.x, 1.1f, center.y),
             Quaternion.identity,
             transform);
 

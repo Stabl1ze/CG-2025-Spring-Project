@@ -10,6 +10,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] public UnitUI unitUI;
     [SerializeField] public BuildingUI buildingUI;
     [SerializeField] public ResourceNodeUI resourceNodeUI;
+    [SerializeField] public ConstructionUI constructionUI;
 
     private readonly List<IUIComponent> allUIComponents = new();
 
@@ -62,6 +63,9 @@ public class UIManager : MonoBehaviour
     public void ShowBuildingPanel(BuildingBase building) => buildingUI?.ShowBuildingPanel(building);
     public void UpdateBuildingHP(BuildingBase building) => buildingUI?.UpdateBuildingHP(building);
     public void HideBuildingPanel() => buildingUI?.Hide();
+
+    public void ShowConstructionPanel() => constructionUI?.ShowConstructionPanel();
+    public void HideConstructionPanel() => constructionUI?.Hide();
     #endregion
 
     #region Minimap Implementation

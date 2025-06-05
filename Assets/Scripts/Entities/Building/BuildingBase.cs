@@ -145,6 +145,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
 
     protected virtual void StartConstruction()
     {
+        if (isBuilt) return;  // For init buildings
         HP = 0f;
         constructionProgress = 0f;
         ShowHealthBar(true);
@@ -168,7 +169,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         }
     }
 
-    protected virtual void CompleteConstruction()
+    public virtual void CompleteConstruction()
     {
         isBuilt = true;
         HP = maxHP;
@@ -273,6 +274,16 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     public float GetMaxHP()
     {
         return maxHP;
+    }
+
+    public void SetHP(float hp)
+    {
+        HP = hp;
+    }
+
+    public void SetMaxHP(float max)
+    {
+        maxHP = max;
     }
     #endregion
 

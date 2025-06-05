@@ -186,17 +186,4 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         }
         queueVisualItems.Clear();
     }
-
-    public void HideBuildingPanel()
-    {
-        if (CurrentPBuilding != null)
-        {
-            CurrentPBuilding.ProductionQueue.OnQueueChanged -= UpdateQueueDisplay;
-        }
-
-        productionPanel?.SetActive(false);
-        CurrentBuilding = null;
-        CurrentPBuilding = null;
-        ClearProductionUI();
-    }
 }

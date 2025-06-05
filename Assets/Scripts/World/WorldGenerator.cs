@@ -15,6 +15,9 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private int mapSize = 100;
     [SerializeField] private Vector2 spawnCenter = new(0, -36);
 
+    [Header("Enemy")]
+    public GameObject[] enemyPrefab;
+
     [Header("Fog of War")]
     [SerializeField] private FogOfWarSystem fogOfWarSystem;
 
@@ -40,8 +43,8 @@ public class WorldGenerator : MonoBehaviour
     private Terrain generatedTerrain;
 
     [Header("Starting Units")]
-    [SerializeField] private GameObject workerPrefab;
-    [SerializeField] private GameObject basePrefab;
+    [SerializeField] private WorkerUnit workerPrefab;
+    [SerializeField] private MainBase basePrefab;
 
     private void Awake()
     {
@@ -76,6 +79,9 @@ public class WorldGenerator : MonoBehaviour
 
         // 生成空地
         List<Clearing> clearings = GenerateClearings();
+
+        // 生成敌人
+        SpawnEnemies(clearings);
 
         // 填充树木
         FillTrees(clearings);
@@ -324,16 +330,74 @@ public class WorldGenerator : MonoBehaviour
             return;
         }
 
-        // 生成基地
-        Instantiate(basePrefab, spawnCenterV3, Quaternion.identity);
+        var mainBaseObject = Instantiate(basePrefab, spawnCenterV3, Quaternion.identity);
+        mainBaseObject.TryGetComponent<MainBase>(out var mainBase);
+        mainBase.SetHP(mainBase.GetMaxHP());
+        mainBase.CompleteConstruction();
 
-        // 生成工人1 (x-3, z+3)
         Vector3 worker1Pos = spawnCenterV3 + new Vector3(-3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
-
-        // 生成工人2 (x+3, z+3)
         Vector3 worker2Pos = spawnCenterV3 + new Vector3(3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker2Pos, Quaternion.identity);
+    }
+    #endregion
+
+    #region Enemy Spawn
+    private void SpawnEnemies(List<Clearing> clearings)
+    {
+        if (enemyPrefab == null)
+        {
+            Debug.LogWarning("Enemy melee prefab not assigned!");
+            return;
+        }
+
+        GameObject enemiesParent = new("Enemies");
+
+        foreach (var clearing in clearings)
+        {
+            if (clearing.isSpawn || enemyPrefab == null)
+                continue;
+
+            int enemyCount = GetEnemyCountByClearingSize(clearing.size);
+            SpawnEnemiesInClearing(clearing, enemyCount, enemiesParent.transform);
+        }
+    }
+
+    // 根据空地大小确定敌人数目
+    private int GetEnemyCountByClearingSize(ClearingSize size)
+    {
+        return size switch
+        {
+            ClearingSize.Small => 1,
+            ClearingSize.Medium => 2,
+            ClearingSize.Large => 4,
+            _ => 0
+        };
+    }
+
+    // 在空地内均匀生成敌人
+    private void SpawnEnemiesInClearing(Clearing clearing, int count, Transform parent)
+    {
+        float radius = clearing.radius * 0.3f; // 使用70%的半径确保敌人在空地内
+        Vector3 center = new(clearing.center.x, 0.5f, clearing.center.y);
+
+        for (int i = 0; i < count; i++)
+        {
+            // 计算均匀分布的角度
+            float angle = i * (360f / count);
+            Vector3 position = center + Quaternion.Euler(0, angle, 0) * Vector3.forward * radius;
+
+            // 实例化敌人并设置为敌对
+            var enemy = Instantiate(enemyPrefab[0], position, Quaternion.identity, parent);
+            if (enemy.TryGetComponent<UnitBase>(out var unit))
+            {
+                unit.SetEnemy();
+            }
+            else
+            {
+                Debug.LogWarning($"Enemy prefab at {position} does not have UnitBase component!");
+            }
+        }
     }
     #endregion
 }

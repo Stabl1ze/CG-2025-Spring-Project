@@ -4394,13 +4394,15 @@ MonoBehaviour:
   terrainPrefab: {fileID: 2690184899254953196, guid: ab1d77c27908061439ca5be9c4221da7, type: 3}
   mapSize: 100
   spawnCenter: {x: 0, y: -36}
+  enemyPrefab:
+  - {fileID: 4815330795811472829, guid: f2aed791d23d5104d95c1769fb298477, type: 3}
   fogOfWarSystem: {fileID: 271870551}
   numS: 7
   numM: 5
   numL: 3
   treePrefab: {fileID: 6424093516073830202, guid: 0e1e61dabd0ef424b8378c2415d67bb0, type: 3}
-  workerPrefab: {fileID: 3591241211840497902, guid: 62eba15ea0d76424cb5480e167af3ef6, type: 3}
-  basePrefab: {fileID: 5716303177908508083, guid: d1871e92dffb303479d0bdc8530eb44e, type: 3}
+  workerPrefab: {fileID: 419478415359333579, guid: 62eba15ea0d76424cb5480e167af3ef6, type: 3}
+  basePrefab: {fileID: 9046429661322279194, guid: d1871e92dffb303479d0bdc8530eb44e, type: 3}
 --- !u!4 &1209023931
 Transform:
   m_ObjectHideFlags: 0

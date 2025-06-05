@@ -35,7 +35,7 @@ public class ProductionBuilding : BuildingBase
         }
     }
 
-    protected override void CompleteConstruction()
+    public override void CompleteConstruction()
     {
         base.CompleteConstruction();
         if (productionQueue != null)

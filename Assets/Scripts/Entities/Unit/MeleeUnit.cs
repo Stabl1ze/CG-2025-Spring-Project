@@ -1,12 +1,15 @@
 using UnityEngine;
 
-public class MeleeCube : UnitBase
+public class MeleeUnit : UnitBase
 {
     [Header("Melee Settings")]
     [SerializeField] private float attackRange = 1.5f;
     [SerializeField] private float attackCooldown = 2f;
     [SerializeField] private int attackDamage = 10;
     [SerializeField] private float attackRotationSpeed = 720f; // 每秒旋转度数
+
+    [Header("AI Settings")]
+    [SerializeField] private float sensingRange = 5f;
 
     private float lastAttackTime;
     private GameObject attackTarget;
@@ -17,6 +20,21 @@ public class MeleeCube : UnitBase
     protected override void Update()
     {
         base.Update();
+
+        if (isEnemy)
+        {
+            // 如果没有当前目标或目标已无效，则寻找新目标
+            if (attackTarget == null || !attackTarget.activeInHierarchy)
+            {
+                FindNearestEnemy();
+            }
+
+            // 如果有目标且不在攻击中，则处理移动/攻击逻辑
+            if (attackTarget != null && !isAttacking)
+            {
+                HandleEnemyAI();
+            }
+        }
 
         if (isAttacking)
         {
@@ -146,14 +164,70 @@ public class MeleeCube : UnitBase
         }
     }
 
-    // 可视化攻击范围
-    protected override void OnDrawGizmosSelected()
+    private void HandleEnemyAI()
     {
-        base.OnDrawGizmosSelected();
+        float distanceToTarget = Vector3.Distance(transform.position, attackTarget.transform.position);
 
-        if (!isSelected) return;
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        if (distanceToTarget <= attackRange)
+        {
+            // 在攻击范围内则直接攻击
+            StartAttack();
+        }
+        else if (distanceToTarget <= sensingRange)
+        {
+            // 在感知范围内但不在攻击范围内，则移动靠近目标
+            targetPosition = GetAttackPosition(attackTarget.transform.position);
+            isMoving = true;
+        }
+        else
+        {
+            // 超出感知范围则放弃目标
+            attackTarget = null;
+        }
     }
+
+    private void FindNearestEnemy()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, sensingRange);
+        float closestDistance = Mathf.Infinity;
+        GameObject closestEnemy = null;
+
+        foreach (var hitCollider in hitColliders)
+        {
+            // 检查是否是有效敌人（非己方单位/建筑）
+            if (IsValidEnemyTarget(hitCollider.gameObject, out var damageable))
+            {
+                float distance = Vector3.Distance(transform.position, hitCollider.transform.position);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestEnemy = hitCollider.gameObject;
+                }
+            }
+        }
+
+        attackTarget = closestEnemy;
+    }
+
+    private bool IsValidEnemyTarget(GameObject target, out IDamageable damageable)
+    {
+        damageable = null;
+
+        // 检查是否可攻击
+        if (!target.TryGetComponent<IDamageable>(out damageable))
+            return false;
+
+        // 检查是否是己方单位
+        var unit = target.GetComponent<UnitBase>();
+        if (unit != null && unit.IsEnemy == isEnemy)
+            return false;
+
+        // 检查是否是己方建筑
+        var building = target.GetComponent<BuildingBase>();
+        if (building != null && building.IsEnemy == isEnemy)
+            return false;
+
+        return true;
+    }
+
 }
