@@ -73,10 +73,9 @@ public class ResourceNode : MonoBehaviour, ISelectable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
-        bool isPrevious = UIManager.Instance.resourceNodeUI.CurrentResourceNode == this;
-        if (UIManager.Instance != null && isPrevious)
+        if (UIManager.Instance != null)
         {
-            UIManager.Instance.UpdateResourceNodeDisplay(this);
+            UIManager.Instance.ShowResourceNodePanel(this);
         }
     }
 

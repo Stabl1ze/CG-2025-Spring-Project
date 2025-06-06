@@ -105,7 +105,11 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (overlap > 0)
         {
             Vector3 pushVector = -0.5f * overlap * normalizedDirection;
-            transform.position += pushVector;
+            if (other.gameObject.layer == LayerMask.NameToLayer("Buildings") 
+                || other.gameObject.layer == LayerMask.NameToLayer("Resources"))
+                transform.position += pushVector;
+            else
+                other.transform.position -= pushVector;
         }
     }
 

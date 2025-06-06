@@ -11,8 +11,8 @@ public class InputManager : MonoBehaviour
 
     [Header("Box Selection Settings")]
     [SerializeField] private Texture boxSelectionTexture;
-    [SerializeField] private Color boxSelectionColor = new Color(0.8f, 0.8f, 0.95f, 0.25f);
-    [SerializeField] private Color boxSelectionBorderColor = new Color(0.8f, 0.8f, 0.95f);
+    [SerializeField] private Color boxSelectionColor = new(0.8f, 0.8f, 0.95f, 0.25f);
+    [SerializeField] private Color boxSelectionBorderColor = new(0.8f, 0.8f, 0.95f);
 
     private Camera mainCamera;
     private float lastClickTime;
@@ -44,6 +44,8 @@ public class InputManager : MonoBehaviour
         HandleSelectionInput();
         HandleCommandInput();
         HandleBoxSelectionInput();
+        HandleMarkTreeInput();
+        HandleDeleteTreeInput();
         HandelEscInput();
     }
 
@@ -228,8 +230,32 @@ public class InputManager : MonoBehaviour
             }
             return;
         }
+    }
 
-        if (Input.GetKey(KeyCode.F))
+    private void HandleMarkTreeInput()
+    {
+        if (Input.GetKey(KeyCode.F) || Input.GetKey(KeyCode.G))
+        {
+            bool mark = Input.GetKey(KeyCode.F); // G键标记，H键取消标记
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+            {
+                if (hit.collider.CompareTag(selectableTag))
+                {
+                    var treeNode = hit.collider.GetComponentInParent<TreeNode>();
+                    if (treeNode != null) // 确保是树木
+                    {
+                        TreeManager.Instance.ToggleMarkTree(treeNode, hit.point, mark);
+                    }
+                }
+            }
+        }
+    }
+
+    // Test method
+    private void HandleDeleteTreeInput()
+    {
+        if (Input.GetKey(KeyCode.H))
         {
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))

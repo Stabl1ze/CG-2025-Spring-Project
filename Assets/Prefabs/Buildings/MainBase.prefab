@@ -291,6 +291,7 @@ MonoBehaviour:
   HP: 500
   maxHP: 500
   isEnemy: 0
+  isDepot: 1
   costs:
   - type: 0
     amount: 200
@@ -299,7 +300,6 @@ MonoBehaviour:
   buildTime: 100
   healthBarAnchor: {fileID: 5659693266671813913}
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
-  healthBarOffset: {x: 0, y: -40, z: 0}
   collisionRadius: 0.5
   collisionLayerMask:
     serializedVersion: 2

@@ -27,7 +27,8 @@ public class FogRegion : MonoBehaviour
     public void SetRevealed(bool revealed)
     {
         isRevealed = revealed;
-        fogCover.SetActive(!revealed);
+        if(fogCover != null)
+            fogCover.SetActive(!revealed);
     }
 
     public bool Contains(Vector2 point)

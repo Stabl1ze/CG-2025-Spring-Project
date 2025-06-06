@@ -10,6 +10,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     [SerializeField] protected float HP = 100f;
     [SerializeField] protected float maxHP = 100f;
     [SerializeField] protected bool isEnemy = false;
+    [SerializeField] protected bool isDepot = false;
     [SerializeField] protected List<ResourcePack> costs = new();
     [SerializeField] protected float buildTime = 10f;
 
@@ -25,6 +26,10 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     private Slider healthBarSlider;
     private static Canvas uiCanvas;
 
+    // Construction settings
+    private int requiredWorkers = 1;
+    private List<WorkerUnit> assignedWorkers = new();
+
     // Selection visual
     private GameObject selectionIndicator;
     private Color selectionColor = Color.green;
@@ -36,6 +41,8 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     protected float constructionProgress = 0f;
 
     public bool IsEnemy => isEnemy;
+    public bool IsBuilt => isBuilt;
+    public bool IsDepot => isDepot;
 
     protected virtual void Awake()
     {
@@ -97,9 +104,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         Vector3 direction = new(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
 
         if (direction.sqrMagnitude < 0.001f)
-        {
             direction = Vector3.forward;
-        }
 
         float distance = direction.magnitude;
         direction.Normalize();
@@ -116,6 +121,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         }
     }
 
+    #region Construction Methods
     protected virtual void StartConstruction()
     {
         if (isBuilt) return;
@@ -128,7 +134,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     {
         if (constructionProgress < 1f)
         {
-            constructionProgress += Time.deltaTime / buildTime;
+            constructionProgress += Time.deltaTime * assignedWorkers.Count / buildTime;
             HP = Mathf.Lerp(0f, maxHP, constructionProgress);
             UpdateHealthBar();
             if (UIManager.Instance != null && UIManager.Instance.buildingUI.CurrentBuilding == this)
@@ -148,12 +154,26 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         HP = maxHP;
         UpdateHealthBar();
         ShowHealthBar(false);
+
+        // Release all workers
+        foreach (var worker in assignedWorkers.ToArray())
+        {
+            RemoveWorker(worker);
+        }
     }
 
-    public virtual bool IsBuilt()
+    public void AssignWorker(WorkerUnit worker)
     {
-        return isBuilt;
+        if (!assignedWorkers.Contains(worker))
+            assignedWorkers.Add(worker);
     }
+
+    public void RemoveWorker(WorkerUnit worker)
+    {
+        if (assignedWorkers.Contains(worker))
+            assignedWorkers.Remove(worker);
+    }
+    #endregion
 
     #region ISelectable Implementation
     public virtual void OnSelect()
@@ -219,6 +239,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         {
             OnDeselect();
             SelectionManager.Instance.DeselectThis(this);
+            BuildingManager.Instance.OnBuildingDestroyed(this);
             Destroy(gameObject);
         }
     }
@@ -271,7 +292,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         {
             healthBarSlider.maxValue = maxHP;
             healthBarSlider.value = HP >= maxHP ? maxHP : HP;
-            healthBarInstance.SetActive(true);
         }
         else
         {

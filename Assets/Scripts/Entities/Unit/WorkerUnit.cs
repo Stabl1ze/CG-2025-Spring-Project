@@ -5,7 +5,7 @@ public class WorkerUnit : UnitBase
     [Header("Worker Settings")]
     [SerializeField] private int resourceCarryCapacity = 10;
     [SerializeField] private float collectionRate = 1f;
-    [SerializeField] private float fetchRange = 1f;
+    [SerializeField] private float fetchRange = 1.5f;
 
     [Header("Visual Effects")]
     [SerializeField] private MeshRenderer bodyRenderer;
@@ -14,12 +14,13 @@ public class WorkerUnit : UnitBase
 
     private bool isCollecting = false;
     private bool isDelivering = false;
+    private bool isChopping = false;
+    private bool isConstructing = false;
     private int currentAmount = 0;
     private ResourceManager.ResourceType currentType = ResourceManager.ResourceType.LineR;
 
     private ResourceNode currentResourceNode;
-    private MainBase targetBase;
-    private bool shouldContinueCollecting = false;
+    private BuildingBase constructionTarget;
 
     protected override void Awake()
     {
@@ -31,69 +32,89 @@ public class WorkerUnit : UnitBase
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
         if (isEnemy) return; // Enemy check
-        if (targetObject == null)
+        if (isConstructing) constructionTarget.RemoveWorker(this);
+
+        if (targetObject == null)  // Normally move to position
         {
             base.ReceiveCommand(targetPosition, targetObject);
             return;
         }
-
+        
         // Reset when new command is received
         CancelCollection();
         isDelivering = false;
-        shouldContinueCollecting = false;
+        isChopping = false;
+        isConstructing = false;
         currentResourceNode = null;
-        targetBase = null;
-        
-        ResourceNode node = targetObject.GetComponentInParent<ResourceNode>();
-        MainBase mainBase = targetObject.GetComponentInParent<MainBase>();
+        constructionTarget = null;
 
-        if (targetObject != null && node != null)
+        ResourceNode node = targetObject.GetComponentInParent<ResourceNode>();
+        ResourceDepot depot = targetObject.GetComponentInParent<ResourceDepot>();
+        BuildingBase building = targetObject.GetComponentInParent<BuildingBase>();
+
+        if (node != null)
         {
-            // Start collecting when click on resource
             currentResourceNode = node;
             this.targetPosition = node.transform.position;
             isMoving = true;
-            isCollecting = false;
-            shouldContinueCollecting = true; // Enable continuous collection
+            isChopping = node is TreeNode;
+            return;
         }
-        else if (targetObject != null && mainBase != null)
-        {
-            // Set base as target for delivery
-            targetBase = mainBase;
-            this.targetPosition = mainBase.transform.position;
-            isMoving = true;
-            isDelivering = true;
-        }
-        else  // Normally move
-            base.ReceiveCommand(targetPosition, targetObject);
 
+        if (building != null)
+        {
+            this.targetPosition = building.transform.position;
+            isMoving = true;
+
+            if (!building.IsBuilt)
+            {
+                isConstructing = true;
+                constructionTarget = building;
+                return;
+            }
+            else if (depot != null)
+            {
+                isDelivering = true;
+                return;
+            }
+        }
+
+        base.ReceiveCommand(targetPosition, targetObject);
     }
 
     protected override void MoveToTarget()
     {
-        if (currentResourceNode != null && !isCollecting && !isDelivering)
+        if (currentResourceNode == null && isChopping && !isCollecting && !isDelivering)
         {
-            // Check if in range of resource node
-            if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z),
-                               new Vector2(targetPosition.x, targetPosition.z)) <= fetchRange)
-            {
-                Debug.Log(currentResourceNode);
-                StartCollecting();
-                return;
-            }
+            FindNextTree();
+            return;
         }
-        else if (targetBase != null && isDelivering)
+
+        if (currentResourceNode != null && AbleToFetch() && !isCollecting && !isDelivering)
         {
-            // Check if in range of base
-            if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z),
-                               new Vector2(targetPosition.x, targetPosition.z)) <= fetchRange)
-            {
-                DeliverResources();
-                return;
-            }
+            StartCollecting();
+            return;
+        }
+
+        if (isDelivering && AbleToFetch())
+        {
+            DeliverResources();
+            return;
+        }
+
+        if (isConstructing && AbleToFetch())
+        {
+            constructionTarget.AssignWorker(this);
+            return;
         }
 
         base.MoveToTarget();
+    }
+
+    private bool AbleToFetch()
+    {
+        return Vector2.Distance(new Vector2(transform.position.x, transform.position.z),
+                               new Vector2(targetPosition.x, targetPosition.z)) <= fetchRange;
     }
 
     #region ISelectable Implements
@@ -105,6 +126,7 @@ public class WorkerUnit : UnitBase
         {
             UIManager.Instance.ShowUnitPanel(this);
             UIManager.Instance.ShowConstructionPanel();
+            UIManager.Instance.constructionUI.SetPreviousWorker(this);
         }
     }
 
@@ -142,9 +164,12 @@ public class WorkerUnit : UnitBase
             return;
         }
 
-        // Collect 
         if (currentResourceNode == null)
+        {
+            CancelCollection();
+            if (isChopping) FindNextTree();
             return;
+        }
         ResourceManager.ResourcePack pack = currentResourceNode.Collect();
         if (pack.amount > 0)
         {
@@ -153,6 +178,7 @@ public class WorkerUnit : UnitBase
         }
         CancelCollection();
         ReturnToBase();
+
         UpdateVisuals();
     }
 
@@ -172,27 +198,37 @@ public class WorkerUnit : UnitBase
         int delivered = currentAmount;
         ResourceManager.Instance.AddResources(currentType, delivered);
 
-        // Reset collect status
         currentAmount = 0;
-        targetBase = null;
+        UpdateVisuals();
 
-        // Check if we should continue collecting
-        if (shouldContinueCollecting && currentResourceNode != null)
+        if (currentResourceNode != null)
         {
             ReturnToResourceNode();
+            return delivered;
         }
 
-        UpdateVisuals();
+        FindNextTree();
         return delivered;
+    }
+
+    private void FindNextTree()
+    {
+        ResourceNode nextTree = TreeManager.Instance.GetNearestMarkedTree(transform.position);
+        if (nextTree != null)
+        {
+            currentResourceNode = nextTree;
+            targetPosition = nextTree.transform.position;
+            isMoving = true;
+            isDelivering = false;
+        }
     }
 
     private void ReturnToBase()
     {
-        MainBase mainBase = FindObjectOfType<MainBase>();
-        if (mainBase != null)
+        BuildingBase nearestBase = BuildingManager.Instance.GetNearestDepot(transform.position);
+        if (nearestBase != null)
         {
-            targetPosition = mainBase.transform.position;
-            targetBase = mainBase;
+            targetPosition = nearestBase.transform.position;
             isMoving = true;
             isDelivering = true;
         }

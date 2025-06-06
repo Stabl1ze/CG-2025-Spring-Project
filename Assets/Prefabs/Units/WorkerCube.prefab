@@ -157,7 +157,7 @@ MonoBehaviour:
     m_Bits: 896
   resourceCarryCapacity: 5
   collectionRate: 1
-  fetchRange: 1.4
+  fetchRange: 1.5
   bodyRenderer: {fileID: 5488305006273667770}
 --- !u!135 &9023211567451490938
 SphereCollider:

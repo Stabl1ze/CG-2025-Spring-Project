@@ -69,14 +69,15 @@ public class BuildingUI : MonoBehaviour, IUIComponent
 
         if (building is ProductionBuilding pBuilding)
         {
+            queueCountText.gameObject.SetActive(true);
             CurrentPBuilding = pBuilding;
             pBuilding.ProductionQueue.OnQueueChanged += UpdateQueueDisplay;
             var items = pBuilding.ProductionQueue.GetAvailableItems();
             for (int i = 0; i < items.Length; i++)
-            {
                 CreateProductionButton(i, items[i]);
-            }
         }
+        else
+            queueCountText.gameObject.SetActive(false);
 
         Show();
     }

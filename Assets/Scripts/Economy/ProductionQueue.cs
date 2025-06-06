@@ -31,7 +31,7 @@ public class ProductionQueue : MonoBehaviour
 
     public bool TryAddToQueue(int itemIndex)
     {
-        if (building.IsEnemy || !building.IsBuilt()) return false;
+        if (building.IsEnemy || !building.IsBuilt) return false;
         if (itemIndex < 0 || itemIndex >= productionItems.Length) return false;
         if (!CanAddToQueue()) return false;
 

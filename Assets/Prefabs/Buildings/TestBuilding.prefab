@@ -264,7 +264,7 @@ MonoBehaviour:
   - type: 0
     amount: 1
   buildTime: 1
-  healthBarAnchor: {fileID: 0}
+  healthBarAnchor: {fileID: 8026320835977695778}
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
   collisionRadius: 0.5
   collisionLayerMask:

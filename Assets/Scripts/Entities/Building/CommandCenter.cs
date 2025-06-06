@@ -18,7 +18,7 @@ public class MainBase : ProductionBuilding
     {
         base.Update();
 
-        if (IsBuilt() && GetCurrentHP() < GetMaxHP())
+        if (isBuilt && GetCurrentHP() < GetMaxHP())
         {
             healTimer += Time.deltaTime;
             if (healTimer >= healInterval)

@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -11,7 +10,7 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     [SerializeField] private GameObject constructionPanel;
     [SerializeField] private Transform constructionButtonParent;
     [SerializeField] private GameObject constructionButtonPrefab;
-    [SerializeField] private BuildingBase[] buildingList;
+    [SerializeField] private List<BuildingBase> buildingList;
     [SerializeField] private TMP_Text costText;
     [SerializeField] private Material ghostMaterial;
     [SerializeField] private LayerMask groundLayer;
@@ -23,6 +22,7 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     private readonly List<GameObject> activeButtons = new();
     private BuildingBase currentGhostBuilding;
     private BuildingBase selectedBuildingPrefab;
+    private WorkerUnit currentWorker;
     private bool isInBuildMode;
     private Renderer[] ghostRenderers;
 
@@ -48,9 +48,19 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
         return;
     }
 
-    public void SetConstructableBuildings(BuildingBase[] buildingList)
+    public void SetPreviousWorker(WorkerUnit worker)
+    {
+        currentWorker = worker;
+    }
+
+    public void SetConstructableBuildings(List<BuildingBase> buildingList)
     {
         this.buildingList = buildingList;
+    }
+
+    public void AddConstructableBuilding(BuildingBase building)
+    {
+        buildingList.Add(building);
     }
 
     public void ShowConstructionPanel()
@@ -62,15 +72,15 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     private void CreateBuildingButton()
     {
         ClearBuildingButtons();
-
-        for (int i = 0; i < buildingList.Length; ++i)
+        var tempList = buildingList.ToArray();
+        for (int i = 0; i < tempList.Length; ++i)
         {
             var buttonObj = Instantiate(constructionButtonPrefab, constructionButtonParent);
             var button = buttonObj.GetComponent<Button>();
             var text = buttonObj.GetComponentInChildren<TMP_Text>();
             var costText = buttonObj.transform.Find("CostText")?.GetComponent<TMP_Text>();
 
-            text.text = buildingList[i].gameObject.name;
+            text.text = tempList[i].gameObject.name;
 
             int index = i;
             button.onClick.AddListener(() => OnBuildingButtonClicked(index));
@@ -81,9 +91,18 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
         }
     }
 
+    // In ConstructionUI.cs, modify the OnBuildingButtonClicked method:
     private void OnBuildingButtonClicked(int buildingIndex)
     {
-        if (buildingIndex < 0 || buildingIndex >= buildingList.Length) return;
+        if (buildingIndex < 0 || buildingIndex >= buildingList.Count) return;
+
+        // If already in build mode with this building, do nothing
+        if (isInBuildMode)
+        {
+            // Cancel current ghost building if any
+            CancelGhostBuilding();
+            return;
+        }
 
         var costs = buildingList[buildingIndex].GetCosts();
         if (costText != null && costs != null)
@@ -98,7 +117,6 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
         selectedBuildingPrefab = buildingList[buildingIndex];
         CreateGhostBuilding(selectedBuildingPrefab);
 
-        // 进入建造模式
         isInBuildMode = true;
         InputManager.IsInBuildMode = true;
     }
@@ -135,25 +153,21 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     {
         while (currentGhostBuilding != null)
         {
-            // 获取鼠标位置
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, groundLayer))
             {
                 currentGhostBuilding.transform.position = hit.point;
 
-                // 检查放置位置是否有效
                 bool isValidPosition = CheckPlacementValidity();
+
                 UpdateGhostColor(isValidPosition);
 
-                // 左键确认放置
                 if (Input.GetMouseButtonDown(0) && isValidPosition)
                 {
                     TryPlaceBuilding();
                     yield break;
                 }
             }
-
-            // 右键取消
             if (Input.GetMouseButtonDown(1))
             {
                 CancelGhostBuilding();
@@ -167,8 +181,6 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     private bool CheckPlacementValidity()
     {
         if (currentGhostBuilding == null) return false;
-
-        // 检查资源是否足够
         foreach (var cost in selectedBuildingPrefab.GetCosts())
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))
@@ -177,7 +189,6 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
             }
         }
 
-        // 检查是否有其他建筑阻挡
         Collider[] collidersBuilding = Physics.OverlapBox(
             currentGhostBuilding.transform.position,
             currentGhostBuilding.transform.localScale / 2,
@@ -227,14 +238,13 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
             ResourceManager.Instance.SpendResources(cost.type, cost.amount);
         }
 
-        // 创建实际建筑
         var realBuilding = Instantiate(selectedBuildingPrefab, currentGhostBuilding.transform.position, currentGhostBuilding.transform.rotation);
+        BuildingManager.Instance.OnBuildingPlaced(realBuilding);
+        currentWorker.ReceiveCommand(realBuilding.transform.position, realBuilding.gameObject);
 
-        // 退出建造模式
         isInBuildMode = false;
         InputManager.IsInBuildMode = false;
 
-        // 销毁虚影
         Destroy(currentGhostBuilding.gameObject);
         currentGhostBuilding = null;
         selectedBuildingPrefab = null;
@@ -248,8 +258,6 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
             currentGhostBuilding = null;
         }
         selectedBuildingPrefab = null;
-
-        // 退出建造模式
         isInBuildMode = false;
         InputManager.IsInBuildMode = false;
     }

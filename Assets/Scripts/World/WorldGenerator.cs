@@ -15,6 +15,12 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private int mapSize = 100;
     [SerializeField] private Vector2 spawnCenter = new(0, -36);
 
+    [Header("Boundary Settings")]
+    [SerializeField] private GameObject boundaryWallPrefab; 
+    [SerializeField] private GameObject waterPlanePrefab;
+    [SerializeField] private float boundaryHeight = 10f;
+    [SerializeField] private float waterLevel = -0.5f;
+
     [Header("Enemy")]
     public GameObject[] enemyPrefab;
 
@@ -45,6 +51,7 @@ public class WorldGenerator : MonoBehaviour
     [Header("Starting Units")]
     [SerializeField] private WorkerUnit workerPrefab;
     [SerializeField] private MainBase basePrefab;
+    [SerializeField] private ResourceDepot depotPrefab;
 
     [Header("Ground Material Settings")]
     [SerializeField] private Material groundMaterial;
@@ -84,18 +91,14 @@ public class WorldGenerator : MonoBehaviour
 
         GenerateBaseTerrain();
 
-        // 生成空地
         List<Clearing> clearings = GenerateClearings();
 
-        // 生成敌人
         SpawnEnemies(clearings);
 
-        // 填充树木
         FillTrees(clearings);
 
         SpawnStartingUnits();
 
-        // 初始化战争迷雾系统
         if (fogOfWarSystem != null)
         {
             fogOfWarSystem.Initialize(clearings, spawnCenter, (float)ClearingSize.Medium, mapSize);
@@ -104,6 +107,8 @@ public class WorldGenerator : MonoBehaviour
         {
             Debug.LogWarning("FogOfWarSystem not assigned to WorldGenerator!");
         }
+
+        BuildingManager.Instance.UpdateDepotList();
     }
 
     private void GenerateBaseTerrain()
@@ -117,13 +122,17 @@ public class WorldGenerator : MonoBehaviour
         // 实例化Terrain
         generatedTerrain = Instantiate(terrainPrefab, spawnCenter, Quaternion.identity);
         generatedTerrain.name = "GeneratedTerrain";
-
-        // 调整地形位置和大小
-        generatedTerrain.transform.position = new Vector3(-mapSize * 0.7f, 0, -mapSize * 0.7f);
-        generatedTerrain.terrainData.size = new Vector3(mapSize * 1.4f, 1, mapSize * 1.4f);
+        generatedTerrain.transform.position = new Vector3(-mapSize / 2f, 0, -mapSize / 2f);
+        generatedTerrain.terrainData.size = new Vector3(mapSize, 1, mapSize);
 
         // 应用棋盘格材质
         ApplyCheckerboardMaterial();
+
+        // 生成水体
+        GenerateWaterBoundary();
+
+        // 生成空气墙
+        GenerateBoundaryWalls();
     }
 
     private void ApplyCheckerboardMaterial()
@@ -312,7 +321,6 @@ public class WorldGenerator : MonoBehaviour
     #region Tree Filling System
     private void FillTrees(List<Clearing> clearings)
     {
-        // 清理之前的树木数据
         if (TreeManager.Instance != null)
         {
             TreeManager.Instance.ClearAllTrees();
@@ -320,28 +328,31 @@ public class WorldGenerator : MonoBehaviour
 
         GameObject treesParent = new("Trees");
 
+        // Cache tree mats
+        GameObject objTemp = Instantiate(treePrefab);
+        TreeNode treeTemp = objTemp.GetComponent<TreeNode>();
+        TreeManager.Instance.SetTreeMaterials(treeTemp);
+        Destroy(objTemp);
+
         for (int x = 0; x < mapSize; x++)
         {
             for (int y = 0; y < mapSize; y++)
             {
-                Vector3 position = new(x - mapSize / 2, 0, y - mapSize / 2);
-                // 检查是否在任何空地内
+                Vector3 position = new(x - mapSize / 2, 0.5f, y - mapSize / 2);
                 if (!IsInAnyClearing(clearings, position))
                 {
                     GameObject tree = Instantiate(treePrefab, position, Quaternion.identity, treesParent.transform);
 
-                    // 确保树木预制体有ResourceNode组件
-                    ResourceNode treeResourceNode = tree.GetComponent<ResourceNode>();
-                    if (treeResourceNode == null)
+                    TreeNode treeNode = tree.GetComponent<TreeNode>();
+                    if (treeNode == null)
                     {
                         Debug.LogWarning($"Tree prefab at {position} does not have ResourceNode component!");
                         continue;
                     }
 
-                    // 注册树木到TreeManager
                     if (TreeManager.Instance != null)
                     {
-                        TreeManager.Instance.RegisterTree(treeResourceNode, position);
+                        TreeManager.Instance.RegisterTree(treeNode, position);
                     }
                 }
             }
@@ -373,8 +384,12 @@ public class WorldGenerator : MonoBehaviour
 
         var mainBaseObject = Instantiate(basePrefab, spawnCenterV3, Quaternion.identity);
         mainBaseObject.TryGetComponent<MainBase>(out var mainBase);
-        mainBase.SetHP(mainBase.GetMaxHP());
         mainBase.CompleteConstruction();
+
+        Vector3 depotPos = spawnCenterV3 + new Vector3(0f, 0.5f, 3f);
+        var depotObject = Instantiate(depotPrefab, depotPos, Quaternion.identity);
+        depotObject.TryGetComponent<ResourceDepot>(out var depot);
+        depot.CompleteConstruction();
 
         Vector3 worker1Pos = spawnCenterV3 + new Vector3(-3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
@@ -404,7 +419,6 @@ public class WorldGenerator : MonoBehaviour
         }
     }
 
-    // 根据空地大小确定敌人数目
     private int GetEnemyCountByClearingSize(ClearingSize size)
     {
         return size switch
@@ -416,19 +430,16 @@ public class WorldGenerator : MonoBehaviour
         };
     }
 
-    // 在空地内均匀生成敌人
     private void SpawnEnemiesInClearing(Clearing clearing, int count, Transform parent)
     {
-        float radius = clearing.radius * 0.3f; // 使用70%的半径确保敌人在空地内
+        float radius = clearing.radius * 0.3f;
         Vector3 center = new(clearing.center.x, 0.5f, clearing.center.y);
 
         for (int i = 0; i < count; i++)
         {
-            // 计算均匀分布的角度
             float angle = i * (360f / count);
             Vector3 position = center + Quaternion.Euler(0, angle, 0) * Vector3.forward * radius;
 
-            // 实例化敌人并设置为敌对
             var enemy = Instantiate(enemyPrefab[0], position, Quaternion.identity, parent);
             if (enemy.TryGetComponent<UnitBase>(out var unit))
             {
@@ -438,6 +449,57 @@ public class WorldGenerator : MonoBehaviour
             {
                 Debug.LogWarning($"Enemy prefab at {position} does not have UnitBase component!");
             }
+        }
+    }
+    #endregion
+
+    #region Boundary Settings
+    private void GenerateWaterBoundary()
+    {
+        if (waterPlanePrefab == null)
+        {
+            Debug.LogWarning("Water plane prefab not assigned!");
+            return;
+        }
+
+        GameObject waterParent = new("WaterBoundary");
+        float waterSize = mapSize * 1.2f;
+        GameObject waterPlane = Instantiate(waterPlanePrefab, Vector3.zero, Quaternion.identity, waterParent.transform);
+        waterPlane.transform.localScale = new Vector3(waterSize, 1, waterSize);
+        waterPlane.transform.position = new Vector3(0, waterLevel, 0);
+    }
+
+    private void GenerateBoundaryWalls()
+    {
+        if (boundaryWallPrefab == null)
+        {
+            Debug.LogWarning("Boundary wall prefab not assigned!");
+            return;
+        }
+
+        GameObject boundaryParent = new("BoundaryWalls");
+
+        float halfSize = mapSize / 2f;
+        float wallLength = mapSize + 2f; 
+
+        CreateWall(boundaryParent.transform, new Vector3(0, boundaryHeight / 2, halfSize),
+            new Vector3(wallLength, boundaryHeight, 0.1f));
+        CreateWall(boundaryParent.transform, new Vector3(0, boundaryHeight / 2, -halfSize),
+            new Vector3(wallLength, boundaryHeight, 0.1f));
+        CreateWall(boundaryParent.transform, new Vector3(halfSize, boundaryHeight / 2, 0),
+            new Vector3(0.1f, boundaryHeight, wallLength));
+        CreateWall(boundaryParent.transform, new Vector3(-halfSize, boundaryHeight / 2, 0),
+            new Vector3(0.1f, boundaryHeight, wallLength));
+    }
+
+    private void CreateWall(Transform parent, Vector3 position, Vector3 scale)
+    {
+        GameObject wall = Instantiate(boundaryWallPrefab, position, Quaternion.identity, parent);
+        wall.transform.localScale = scale;
+
+        if (wall.GetComponent<Collider>() == null)
+        {
+            wall.AddComponent<BoxCollider>();
         }
     }
     #endregion
