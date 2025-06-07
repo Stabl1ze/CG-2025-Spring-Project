@@ -236,16 +236,17 @@ public class InputManager : MonoBehaviour
     {
         if (Input.GetKey(KeyCode.F) || Input.GetKey(KeyCode.G))
         {
-            bool mark = Input.GetKey(KeyCode.F); // G键标记，H键取消标记
+            bool mark = Input.GetKey(KeyCode.F); 
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
             {
                 if (hit.collider.CompareTag(selectableTag))
                 {
                     var treeNode = hit.collider.GetComponentInParent<TreeNode>();
-                    if (treeNode != null) // 确保是树木
+                    if (treeNode != null) 
                     {
-                        TreeManager.Instance.ToggleMarkTree(treeNode, hit.point, mark);
+                        TreeManager.Instance.ToggleMarkTree(treeNode, treeNode.transform.position, mark);
+                        return;
                     }
                 }
             }

@@ -36,6 +36,11 @@ public class ResourceNode : MonoBehaviour, ISelectable
         collider.isTrigger = true;
     }
 
+    protected void OnDestroy()
+    {
+        DepleteNode();
+    }
+
     protected void OnTriggerStay(Collider other)
     {
         if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)

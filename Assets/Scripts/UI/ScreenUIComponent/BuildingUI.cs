@@ -171,7 +171,6 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         if (isProducing)
         {
             float progress = CurrentPBuilding.ProductionQueue.CurrentProductionProgress;
-            Debug.Log(progress);
             progressBarSlider.value = progress;
             progressBarFill.color = Color.Lerp(Color.red, Color.green, progress);
         }

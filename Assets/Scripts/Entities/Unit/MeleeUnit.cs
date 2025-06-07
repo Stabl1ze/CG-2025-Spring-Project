@@ -4,7 +4,8 @@ public class MeleeUnit : UnitBase
 {
     [Header("Melee Settings")]
     [SerializeField] private float attackRange = 1.5f;
-    [SerializeField] private float attackCooldown = 2f;
+    [SerializeField] private float attackTime = 0.8f;
+    [SerializeField] private float attackCooldown = 0.8f;
     [SerializeField] private int attackDamage = 10;
     [SerializeField] private float attackRotationSpeed = 720f;
 
@@ -107,9 +108,9 @@ public class MeleeUnit : UnitBase
 
     private void HandleAttackAnimation()
     {
-        attackProgress += Time.deltaTime;
+        attackProgress += Time.deltaTime / 0.8f;
 
-        float rotationAmount = attackRotationSpeed * Time.deltaTime;
+        float rotationAmount = attackRotationSpeed * Time.deltaTime / 0.8f;
         transform.Rotate(Vector3.up, rotationAmount);
 
         if (attackProgress >= 1f)

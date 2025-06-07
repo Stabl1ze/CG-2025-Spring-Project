@@ -496,8 +496,6 @@ MonoBehaviour:
     costs:
     - type: 0
       amount: 20
-    - type: 1
-      amount: 2
   maxQueueSize: 5
 --- !u!1 &7718272062144782053
 GameObject:

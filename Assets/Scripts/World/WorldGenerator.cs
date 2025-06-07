@@ -415,17 +415,17 @@ public class WorldGenerator : MonoBehaviour
             switch (clearing.size)
             {
                 case ClearingSize.Small:
-                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 1, resourcesParent.transform));
+                    resources.AddRange(SpawnResourceInClearing(linePrefab, clearing, 1, resourcesParent.transform));
                     break;
 
                 case ClearingSize.Medium:
-                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 2, resourcesParent.transform));
-                    resources.AddRange(SpawnResourceInClearing(cubePrefab, clearing, 1, resourcesParent.transform));
+                    resources.AddRange(SpawnResourceInClearing(linePrefab, clearing, 2, resourcesParent.transform));
+                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 1, resourcesParent.transform));
                     break;
 
                 case ClearingSize.Large:
+                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 2, resourcesParent.transform));
                     resources.AddRange(SpawnResourceInClearing(cubePrefab, clearing, 2, resourcesParent.transform));
-                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 1, resourcesParent.transform));
                     break;
             }
 

@@ -15,7 +15,6 @@ public class FogOfWarSystem : MonoBehaviour
     private Dictionary<Clearing, List<GameObject>> clearingResources = new();
     private Vector2 spawnCenter;
     private float spawnRadius;
-    private int mapSize;
     private const float cellSize = 1f;
 
     private HashSet<Vector2Int> passableCells = new();
@@ -47,7 +46,6 @@ public class FogOfWarSystem : MonoBehaviour
     {
         this.spawnCenter = spawnCenter;
         this.spawnRadius = spawnRadius;
-        this.mapSize = mapSize;
         allClearings = new List<Clearing>(clearings);
 
         unrevealedClearings.Clear();
@@ -55,7 +53,6 @@ public class FogOfWarSystem : MonoBehaviour
             if (!clearing.isSpawn)
                 unrevealedClearings.Add(clearing);
 
-        InitializePassableCells();
         ClearAllFogRegions();
 
         foreach (var clearing in clearings)
@@ -70,26 +67,6 @@ public class FogOfWarSystem : MonoBehaviour
         }
 
         UpdateFogState();
-    }
-
-    private void InitializePassableCells()
-    {
-        passableCells.Clear();
-
-        int halfSize = mapSize / 2;
-        for (int x = -halfSize; x <= halfSize; x++)
-        {
-            for (int y = -halfSize; y <= halfSize; y++)
-            {
-                Vector2 worldPos = new Vector2(x, y);
-                Vector2Int gridPos = WorldToGrid(worldPos);
-
-                if (IsInAnyClearing(worldPos) && !HasTreeAt(gridPos))
-                {
-                    passableCells.Add(gridPos);
-                }
-            }
-        }
     }
 
     private void ClearAllFogRegions()
@@ -107,8 +84,7 @@ public class FogOfWarSystem : MonoBehaviour
 
     private void OnTreeRemoved(Vector2Int removedTreePosition)
     {
-        passableCells.Add(removedTreePosition);
-
+        PathManager.Instance.AddPassableCell(removedTreePosition);
         UpdateFogState();
     }
 
@@ -232,23 +208,6 @@ public class FogOfWarSystem : MonoBehaviour
         return grids;
     }
 
-    private bool HasTreeAt(Vector2Int gridPosition)
-    {
-        return TreeManager.Instance != null && TreeManager.Instance.HasTreeAt(gridPosition);
-    }
-
-    private bool IsInAnyClearing(Vector2 position)
-    {
-        foreach (var clearing in allClearings)
-        {
-            if (Vector2.Distance(position, clearing.center) <= clearing.radius)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public bool IsInUnrevealedClearing(Vector3 position)
     {
         Vector2 pos = new(position.x, position.z);
@@ -272,13 +231,6 @@ public class FogOfWarSystem : MonoBehaviour
             }
         }
         return null;
-    }
-
-    private Vector2Int WorldToGrid(Vector2 worldPos)
-    {
-        return new Vector2Int(
-            Mathf.RoundToInt(worldPos.x / cellSize),
-            Mathf.RoundToInt(worldPos.y / cellSize));
     }
 
     private Vector2 GridToWorld(Vector2Int gridPos)

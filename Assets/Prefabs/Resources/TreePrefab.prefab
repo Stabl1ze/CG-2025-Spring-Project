@@ -297,8 +297,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   resourceType: 0
-  resourceAmount: 2
-  collectAmount: 1
+  resourceAmount: 4
+  collectAmount: 2
   collisionRadius: 0.3
   collisionLayerMask:
     serializedVersion: 2
