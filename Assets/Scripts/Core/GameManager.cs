@@ -12,9 +12,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private SelectionManager selectionManager;
     [SerializeField] private CameraController cameraController;
 
+    private bool beaconBuilt = false;
+    private int enemiesDefeated = 0;
+
     public enum GameState { MainMenu, Playing, Paused, GameOver }
     public GameState CurrentGameState { get; private set; }
-    
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -22,17 +25,70 @@ public class GameManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-        
+
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        
+
         InitializeGame();
+    }
+
+    private void OnDestroy()
+    {
+        if (BuildingManager.Instance != null)
+            BuildingManager.Instance.OnBuildingConstructed -= CheckBeaconBuilt;
+
+        if (UnitManager.Instance != null)
+            UnitManager.Instance.OnEnemyDestroyed -= CheckEnemiesDefeated;
     }
 
     private void InitializeGame()
     {
         CurrentGameState = GameState.Playing;
+        beaconBuilt = false;
+        enemiesDefeated = 0;
+
+        BuildingManager.Instance.OnBuildingConstructed += CheckBeaconBuilt;
+        UnitManager.Instance.OnEnemyDestroyed += CheckEnemiesDefeated;
+
         DebugLog("All systems initialized");
+    }
+
+    private void CheckBeaconBuilt(BuildingBase building)
+    {
+        if (!GameConfig.UseBuildBeaconCondition) return;
+
+        if (building is Beacon)
+        {
+            beaconBuilt = true;
+            CheckVictoryConditions();
+        }
+    }
+
+    private void CheckEnemiesDefeated()
+    {
+        if (!GameConfig.UseDefeatEnemiesCondition) return;
+
+        enemiesDefeated++;
+        if (enemiesDefeated >= GameConfig.EnemiesToDefeat)
+        {
+            CheckVictoryConditions();
+        }
+    }
+
+    private void CheckVictoryConditions()
+    {
+        bool victory = true;
+
+        if (GameConfig.UseDefeatEnemiesCondition && enemiesDefeated < GameConfig.EnemiesToDefeat)
+            victory = false;
+
+        if (GameConfig.UseBuildBeaconCondition && !beaconBuilt)
+            victory = false;
+
+        if (victory)
+        {
+            NotifyGameOver(true);
+        }
     }
 
     public void ChangeGameState(GameState newState)
@@ -50,7 +106,7 @@ public class GameManager : MonoBehaviour
                 break;
         }
     }
-    
+
     private void DebugLog(string message)
     {
         if (debugMode)
@@ -69,4 +125,6 @@ public class GameManager : MonoBehaviour
         ChangeGameState(GameState.GameOver);
         DebugLog($"Game Over - Player {(playerWon ? "won" : "lost")}");
     }
+
+
 }

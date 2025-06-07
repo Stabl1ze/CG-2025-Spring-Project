@@ -21,6 +21,18 @@ public class FogOfWarSystem : MonoBehaviour
     private HashSet<Vector2Int> passableCells = new();
     private HashSet<FogRegion> revealedRegions = new();
 
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+    }
+
     private void Start()
     {
         TreeManager.OnTreeRemoved += OnTreeRemoved;

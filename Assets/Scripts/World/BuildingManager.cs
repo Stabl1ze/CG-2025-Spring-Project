@@ -6,7 +6,11 @@ public class BuildingManager : MonoBehaviour
 {
     public static BuildingManager Instance { get; private set; }
 
+    public delegate void BuildingPlacedHandler(BuildingBase building);
+    public event BuildingPlacedHandler OnBuildingConstructed;
+
     private List<BuildingBase> depots = new();
+    private List<BuildingBase> allBuildings = new();
 
     private void Awake()
     {
@@ -18,17 +22,25 @@ public class BuildingManager : MonoBehaviour
         Instance = this;
     }
 
-    public void OnBuildingPlaced(BuildingBase newBuilding)
+    public void RegisterBuilding(BuildingBase building)
     {
+        OnBuildingConstructed?.Invoke(building);
+
+        if (!allBuildings.Contains(building))
+            allBuildings.Add(building);
+
         // Check if the placed building is a depot
-        if (newBuilding.IsDepot && !depots.Contains(newBuilding))
-            depots.Add(newBuilding);
+        if (building.IsDepot && !depots.Contains(building))
+            depots.Add(building);
     }
 
     public void OnBuildingDestroyed(BuildingBase destroyedBuilding)
     {
         if (depots.Contains(destroyedBuilding))
             depots.Remove(destroyedBuilding);
+
+        if (allBuildings.Contains(destroyedBuilding))
+            allBuildings.Remove(destroyedBuilding);
     }
 
     public void UpdateDepotList()

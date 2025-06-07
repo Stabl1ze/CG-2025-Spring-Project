@@ -188,12 +188,8 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     private bool CheckPlacementValidity()
     {
         if (currentGhostBuilding == null) return false;
-
-        if (FogOfWarSystem.Instance != null &&
-        FogOfWarSystem.Instance.IsInUnrevealedClearing(currentGhostBuilding.transform.position))
-        {
+        if (FogOfWarSystem.Instance.IsInUnrevealedClearing(currentGhostBuilding.transform.position))
             return false;
-        }
 
         foreach (var cost in selectedBuildingPrefab.GetCosts())
         {

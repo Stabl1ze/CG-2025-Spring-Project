@@ -29,14 +29,16 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     // Selection visual
     protected GameObject selectionIndicator;
     protected Color selectionColor = Color.green;
+    protected Color enemyIndicatorColor = Color.red;
     protected readonly float indicatorRadius = 1.0f;
-    protected readonly float indicatorHeightOffset = 0.1f;
+    protected readonly float indicatorHeightOffset = -0.2f;
 
     protected bool isSelected = false;
     protected bool isMoving = false;
     protected Vector3 targetPosition;
 
     public bool IsEnemy => isEnemy;
+    public event System.Action OnDestroyed;
 
     protected virtual void Awake()
     {
@@ -84,6 +86,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         {
             Destroy(healthBarInstance);
         }
+        OnDestroyed?.Invoke();
     }
 
     private void OnTriggerStay(Collider other)
@@ -119,9 +122,9 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
             transformXY = new(transform.position.x, transform.position.z);
         Vector3 direction = (targetPosition - transform.position).normalized;
         direction.y = 0;
-        if (Vector3.Distance(targetXY, transformXY) > 0.5f)
+        if (Vector2.Distance(targetXY, transformXY) > 0.5f)
         {
-            transform.position += direction * moveSpeed * Time.deltaTime;
+            transform.position += moveSpeed * Time.deltaTime * direction;
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
@@ -146,7 +149,8 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     public virtual void OnDeselect()
     {
         isSelected = false;
-        selectionIndicator.SetActive(false);
+        if (!isEnemy)
+            selectionIndicator.SetActive(false);
         ShowHealthBar(false);
         if (UIManager.Instance != null)
         {
@@ -293,6 +297,16 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         }
     }
 
+    private void SetEnemyIndicator()
+    {
+        if (selectionIndicator == null) return;
+        selectionIndicator.SetActive(true);
+        if (selectionIndicator.TryGetComponent<LineRenderer>(out var lineRenderer))
+        {
+            lineRenderer.material.color = enemyIndicatorColor;
+        }
+    }
+
     #region Hitbox
     private float GetOtherCollisionRadius(Collider other)
     {
@@ -317,6 +331,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     public void SetEnemy()
     {
         isEnemy = true;
+        SetEnemyIndicator();
     }
 
     private IEnumerator HideHealthBarAfterDelay(float delay)

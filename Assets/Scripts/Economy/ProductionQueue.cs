@@ -83,9 +83,14 @@ public class ProductionQueue : MonoBehaviour
 
             GameObject newUnit = Instantiate(currentItem.unitPrefab, building.SpawnPoint.position, building.SpawnPoint.rotation);
 
-            // Move to rally point if available
-            if (building.RallyPoint != null && newUnit.TryGetComponent<UnitBase>(out var unitBase))
-                unitBase.ReceiveCommand(building.RallyPoint.position, null);
+            if (newUnit.TryGetComponent<UnitBase>(out var unitBase))
+            {
+                UnitManager.Instance.RegisterUnit(unitBase);
+
+                // Move to rally point if available
+                if (building.RallyPoint != null)
+                    unitBase.ReceiveCommand(building.RallyPoint.position, null);
+            }
 
             queue.Dequeue();
             currentProductionProgress = 0f;

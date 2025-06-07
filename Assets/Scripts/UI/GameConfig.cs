@@ -10,6 +10,14 @@ public class GameConfig : MonoBehaviour
     [Header("Configuration Options")]
     [SerializeField] private int difficulty;
 
+    [Header("Victory Conditions")]
+    [SerializeField] private Toggle defeatEnemiesToggle;
+    [SerializeField] private Toggle buildBeaconToggle;
+
+    public static bool UseDefeatEnemiesCondition { get; private set; }
+    public static int EnemiesToDefeat { get; private set; }
+    public static bool UseBuildBeaconCondition { get; private set; }
+
     private void Awake()
     {
         startGameButton.onClick.AddListener(StartGame);
@@ -18,6 +26,13 @@ public class GameConfig : MonoBehaviour
 
     private void StartGame()
     {
+        UseDefeatEnemiesCondition = defeatEnemiesToggle.isOn;
+        if (UseDefeatEnemiesCondition)
+            EnemiesToDefeat = 18;
+        else
+            EnemiesToDefeat = 0;
+        UseBuildBeaconCondition = buildBeaconToggle.isOn;
+
         ApplyConfiguration();
         FindObjectOfType<MainMenuController>().StartGame();
     }

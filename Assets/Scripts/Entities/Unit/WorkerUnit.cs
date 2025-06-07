@@ -11,6 +11,9 @@ public class WorkerUnit : UnitBase
     [SerializeField] private MeshRenderer bodyRenderer;
 
     private Color originalColor;
+    private Color lineColor = new(96 / 255f, 74 / 255f, 52 / 255f);
+    private Color faceColor = new(255 / 255f, 231 / 255f, 0 / 255f);           
+    private Color cubeColor = new (81 / 255f, 0 / 255f, 255 / 255f);
 
     private bool isCollecting = false;
     private bool isDelivering = false;
@@ -255,11 +258,11 @@ public class WorkerUnit : UnitBase
             if (isCarrying)
             {
                 if (currentType == ResourceManager.ResourceType.LineR)
-                    bodyRenderer.material.color = new Color(96, 74, 52);
+                    bodyRenderer.material.color = lineColor;
                 if (currentType == ResourceManager.ResourceType.FaceR)
-                    bodyRenderer.material.color = new Color(255, 231, 0);
+                    bodyRenderer.material.color = faceColor;
                 if (currentType == ResourceManager.ResourceType.CubeR)
-                    bodyRenderer.material.color = Color.cyan;
+                    bodyRenderer.material.color = cubeColor;
             }
             else
             {

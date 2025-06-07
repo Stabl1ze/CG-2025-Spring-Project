@@ -119,6 +119,10 @@ public class UIManager : MonoBehaviour
             ResourceManager.Instance?.AddResources(ResourceManager.ResourceType.CubeR, 100);
         }
 
+        if(GUILayout.Button("Test Win Condition"))
+        {
+            GameManager.Instance.NotifyGameOver(true);
+        }
         GUILayout.EndArea();
     }
     #endregion

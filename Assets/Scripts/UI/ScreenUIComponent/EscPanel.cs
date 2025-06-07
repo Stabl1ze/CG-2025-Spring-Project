@@ -46,24 +46,16 @@ public class EscUI : MonoBehaviour, IUIComponent
 
     private void BackToMenu()
     {
-        // 1. 重置游戏状态和时间缩放
         if (GameManager.Instance != null)
-        {
-            GameManager.Instance.ChangeGameState(GameManager.GameState.Playing);
-        }
-        Time.timeScale = 1f; // 确保时间缩放重置
+            GameManager.Instance.ChangeGameState(GameManager.GameState.MainMenu);
+        Time.timeScale = 1f;
 
-        // 2. 卸载当前场景的资源（可选）
         Resources.UnloadUnusedAssets();
 
-        // 3. 异步加载主菜单
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("MainMenu");
         asyncLoad.allowSceneActivation = true;
-
-        // 4. 添加加载完成回调
         asyncLoad.completed += (operation) =>
         {
-            // 确保所有单例对象被正确处理
             var gameManager = GameManager.Instance;
             if (gameManager != null)
             {
@@ -73,7 +65,6 @@ public class EscUI : MonoBehaviour, IUIComponent
             Debug.Log("Main menu loaded successfully");
         };
 
-        // 5. 立即隐藏ESC面板
         Hide();
     }
 

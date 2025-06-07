@@ -21,11 +21,11 @@ public class MeleeUnit : UnitBase
     {
         base.Update();
 
-        if (attackTarget == null || !attackTarget.activeInHierarchy)
+        if (attackTarget == null && !isMoving)
             FindNearestEnemy();
 
         if (attackTarget != null && !isAttacking)
-            HandleEnemyAI();
+            HandleAttackAI();
 
         if (isAttacking)
             HandleAttackAnimation();
@@ -137,7 +137,7 @@ public class MeleeUnit : UnitBase
         }
     }
 
-    private void HandleEnemyAI()
+    private void HandleAttackAI()
     {
         float distanceToTarget = Vector3.Distance(transform.position, attackTarget.transform.position);
 

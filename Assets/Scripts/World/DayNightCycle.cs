@@ -1,5 +1,7 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class DayNightCycle : MonoBehaviour
 {
@@ -14,11 +16,12 @@ public class DayNightCycle : MonoBehaviour
 
     [Header("UI Settings")]
     [SerializeField] private Slider timeSlider;
+    [SerializeField] private TMP_Text timeText;
     [SerializeField] private Image sliderFill;
     [SerializeField] private Gradient timeGradient;
 
     private bool isDaytime = true;
-    private float dayProgress = 0f;
+    private readonly float dayProgress = 0f;
 
     private void Start()
     {
@@ -34,7 +37,7 @@ public class DayNightCycle : MonoBehaviour
     private void Update()
     {
         currentTimeOfDay += Time.deltaTime / dayDurationInSeconds;
-        currentTimeOfDay %= 1f; 
+        currentTimeOfDay %= 1f;
 
         bool newDaytime = currentTimeOfDay > 0.25f && currentTimeOfDay < 0.75f;
         if (newDaytime != isDaytime)
@@ -72,6 +75,23 @@ public class DayNightCycle : MonoBehaviour
         {
             sliderFill.color = timeGradient.Evaluate(currentTimeOfDay);
         }
+
+        // Update 24-hour time display
+        if (timeText != null)
+        {
+            timeText.text = Get24HourTime();
+        }
+    }
+
+    private string Get24HourTime()
+    {
+        // Convert 0-1 value to 24-hour time (00:00 - 23:59)
+        float totalMinutes = currentTimeOfDay * 1440f; // 24*60 minutes
+        int hours = Mathf.FloorToInt(totalMinutes / 60f);
+        int minutes = Mathf.FloorToInt(totalMinutes % 60f);
+
+        // Format as XX:XX with leading zeros
+        return $"{hours:D2}:{minutes:D2}";
     }
 
     private void OnDayNightTransition()
@@ -82,4 +102,5 @@ public class DayNightCycle : MonoBehaviour
     public float GetCurrentTimeNormalized() => currentTimeOfDay;
     public bool IsDaytime() => isDaytime;
     public float GetDayProgress() => dayProgress;
+    public string GetCurrent24HourTime() => Get24HourTime(); // Public access to the formatted time
 }

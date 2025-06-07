@@ -36,8 +36,8 @@ public class ResourceManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-
         InitializeResources();
+        UpdateUI();
     }
 
     private void InitializeResources()

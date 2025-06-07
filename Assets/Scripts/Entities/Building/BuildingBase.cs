@@ -154,7 +154,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         HP = maxHP;
         UpdateHealthBar();
         ShowHealthBar(false);
-        BuildingManager.Instance?.OnBuildingPlaced(this);
+        BuildingManager.Instance?.RegisterBuilding(this);
 
         // Release all workers
         foreach (var worker in assignedWorkers.ToArray())
