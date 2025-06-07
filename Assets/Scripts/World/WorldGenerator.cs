@@ -3,15 +3,14 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using static WorldGenerator.Clearing;
+using Unity.VisualScripting;
 
 public class WorldGenerator : MonoBehaviour
 {
     public static WorldGenerator Instance { get; private set; }
 
-    [Header("Terrain Prefab")]
-    [SerializeField] private Terrain terrainPrefab;
-
     [Header("Generation Settings")]
+    [SerializeField] private Terrain terrainPrefab;
     [SerializeField] private int mapSize = 100;
     [SerializeField] private Vector2 spawnCenter = new(0, -36);
 
@@ -21,7 +20,13 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private float boundaryHeight = 10f;
     [SerializeField] private float waterLevel = -0.5f;
 
-    [Header("Enemy")]
+    [Header("Resource Nodes Prefab")]
+    [SerializeField] private GameObject treePrefab;
+    [SerializeField] private GameObject linePrefab;
+    [SerializeField] private GameObject facePrefab;
+    [SerializeField] private GameObject cubePrefab;
+
+    [Header("Enemies Prefab")]
     public GameObject[] enemyPrefab;
 
     [Header("Fog of War")]
@@ -44,7 +49,6 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private int numS = 3;
     [SerializeField] private int numM = 3;
     [SerializeField] private int numL = 3;
-    [SerializeField] private GameObject treePrefab;
 
     private Terrain generatedTerrain;
 
@@ -80,10 +84,8 @@ public class WorldGenerator : MonoBehaviour
 
     private IEnumerator GenerateWorldRoutine()
     {
-        // 加载场景
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("OverWorld");
 
-        // 等待场景加载完成
         while (!asyncLoad.isDone)
         {
             yield return null;
@@ -99,14 +101,9 @@ public class WorldGenerator : MonoBehaviour
 
         SpawnStartingUnits();
 
-        if (fogOfWarSystem != null)
-        {
-            fogOfWarSystem.Initialize(clearings, spawnCenter, (float)ClearingSize.Medium, mapSize);
-        }
-        else
-        {
-            Debug.LogWarning("FogOfWarSystem not assigned to WorldGenerator!");
-        }
+        fogOfWarSystem.Initialize(clearings, spawnCenter, (float)ClearingSize.Medium, mapSize);
+
+        GenerateResourcesInClearings(clearings);
 
         BuildingManager.Instance.UpdateDepotList();
     }
@@ -395,6 +392,73 @@ public class WorldGenerator : MonoBehaviour
         Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
         Vector3 worker2Pos = spawnCenterV3 + new Vector3(3f, 0.5f, 3f);
         Instantiate(workerPrefab, worker2Pos, Quaternion.identity);
+    }
+    #endregion
+
+    #region Resource Generation in Clearings
+    private void GenerateResourcesInClearings(List<Clearing> clearings)
+    {
+        if (facePrefab == null || cubePrefab == null)
+        {
+            Debug.LogWarning("Face or Cube prefabs not assigned!");
+            return;
+        }
+
+        GameObject resourcesParent = new("ClearingResources");
+
+        foreach (var clearing in clearings)
+        {
+            if (clearing.isSpawn) continue;
+
+            List<GameObject> resources = new();
+
+            switch (clearing.size)
+            {
+                case ClearingSize.Small:
+                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 1, resourcesParent.transform));
+                    break;
+
+                case ClearingSize.Medium:
+                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 2, resourcesParent.transform));
+                    resources.AddRange(SpawnResourceInClearing(cubePrefab, clearing, 1, resourcesParent.transform));
+                    break;
+
+                case ClearingSize.Large:
+                    resources.AddRange(SpawnResourceInClearing(cubePrefab, clearing, 2, resourcesParent.transform));
+                    resources.AddRange(SpawnResourceInClearing(facePrefab, clearing, 1, resourcesParent.transform));
+                    break;
+            }
+
+            fogOfWarSystem.RegisterClearingResources(clearing, resources);
+        }
+    }
+
+    private List<GameObject> SpawnResourceInClearing(GameObject prefab, Clearing clearing, int count, Transform parent)
+    {
+        List<GameObject> spawnedResources = new();
+        Vector2 center = clearing.center;
+        float minRadius = clearing.radius * 0.3f;
+        float maxRadius = clearing.radius * 0.7f;
+
+        for (int i = 0; i < count; i++)
+        {
+            float angle = Random.Range(0f, 360f);
+            float distance = Random.Range(minRadius, maxRadius);
+
+            Vector2 offset = new Vector2(
+                Mathf.Cos(angle * Mathf.Deg2Rad) * distance,
+                Mathf.Sin(angle * Mathf.Deg2Rad) * distance);
+            Vector3 position = new Vector3(
+                center.x + offset.x,
+                0.5f,
+                center.y + offset.y);
+
+            var resource = Instantiate(prefab, position, Quaternion.identity, parent);
+            resource.SetActive(false);
+            spawnedResources.Add(resource);
+        }
+
+        return spawnedResources;
     }
     #endregion
 

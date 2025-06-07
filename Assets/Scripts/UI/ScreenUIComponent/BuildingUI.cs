@@ -19,6 +19,9 @@ public class BuildingUI : MonoBehaviour, IUIComponent
     [SerializeField] private GameObject queueItemPrefab;
     [SerializeField] private float queueIconSpacing = 60f;
     [SerializeField] private Vector2 queueStartPosition = new(0, -100);
+    [SerializeField] private Image progressBarFill;
+    [SerializeField] private Slider progressBarSlider;
+
 
     public BuildingBase CurrentBuilding { get; private set; }
     public ProductionBuilding CurrentPBuilding { get; private set; }
@@ -52,13 +55,10 @@ public class BuildingUI : MonoBehaviour, IUIComponent
     public void UpdateDisplay()
     {
         if (CurrentBuilding != null)
-        {
             UpdateBuildingHP(CurrentBuilding);
-        }
+
         if (CurrentPBuilding != null)
-        {
             UpdateQueueDisplay();
-        }
     }
 
     public void ShowBuildingPanel(BuildingBase building)
@@ -111,11 +111,11 @@ public class BuildingUI : MonoBehaviour, IUIComponent
     {
         if (CurrentPBuilding == null) return;
 
-        // Update queue count text
         int count = CurrentPBuilding.ProductionQueue.GetQueueCount();
-        queueCountText.text = $"Queue: {count}";
+        queueCountText.text = $"Queue: {count}/{CurrentPBuilding.ProductionQueue.GetQueueMax()}";
 
-        // Update queue visualization
+        UpdateProgressBar();
+
         UpdateQueueVisualization();
     }
 
@@ -153,9 +153,27 @@ public class BuildingUI : MonoBehaviour, IUIComponent
             var iconSprite = Resources.Load<Sprite>($"Icons/{item.unitPrefab.name}");
             if (iconSprite != null) image.sprite = iconSprite;
 
-            if (text != null) text.text = item.unitPrefab.name;
+            if (text != null) text.text = (i == 0 && CurrentPBuilding.ProductionQueue.IsProducing()) ?
+                $"{Mathf.RoundToInt(CurrentPBuilding.ProductionQueue.CurrentProductionProgress * 100)}%" :
+                item.unitPrefab.name;
 
             queueVisualItems.Add(icon);
+        }
+    }
+
+    private void UpdateProgressBar()
+    {
+        if (CurrentPBuilding == null || progressBarFill == null || progressBarSlider == null) return;
+
+        bool isProducing = CurrentPBuilding.ProductionQueue.IsProducing();
+        progressBarSlider.gameObject.SetActive(isProducing);
+
+        if (isProducing)
+        {
+            float progress = CurrentPBuilding.ProductionQueue.CurrentProductionProgress;
+            Debug.Log(progress);
+            progressBarSlider.value = progress;
+            progressBarFill.color = Color.Lerp(Color.red, Color.green, progress);
         }
     }
 

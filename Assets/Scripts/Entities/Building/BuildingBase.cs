@@ -154,6 +154,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         HP = maxHP;
         UpdateHealthBar();
         ShowHealthBar(false);
+        BuildingManager.Instance?.OnBuildingPlaced(this);
 
         // Release all workers
         foreach (var worker in assignedWorkers.ToArray())
@@ -220,8 +221,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     #region IDamageable Implementation
     public virtual void TakeDamage(float damage)
     {
-        if (!isBuilt) return;
-
         if (HP >= maxHP)
             HP = maxHP;
 

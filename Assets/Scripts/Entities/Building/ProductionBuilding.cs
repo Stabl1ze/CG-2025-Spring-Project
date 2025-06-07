@@ -46,7 +46,7 @@ public class ProductionBuilding : BuildingBase
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
         if (isEnemy) return; // Enemy check
-        this.rallyPoint.position = targetPosition;
+        rallyPoint.position = targetPosition;
     }
     #endregion
 }

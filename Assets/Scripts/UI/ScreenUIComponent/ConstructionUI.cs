@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
@@ -153,6 +154,12 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     {
         while (currentGhostBuilding != null)
         {
+            if (EventSystem.current.IsPointerOverGameObject())
+            {
+                yield return null;
+                continue;
+            }
+
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity, groundLayer))
             {
@@ -181,6 +188,13 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
     private bool CheckPlacementValidity()
     {
         if (currentGhostBuilding == null) return false;
+
+        if (FogOfWarSystem.Instance != null &&
+        FogOfWarSystem.Instance.IsInUnrevealedClearing(currentGhostBuilding.transform.position))
+        {
+            return false;
+        }
+
         foreach (var cost in selectedBuildingPrefab.GetCosts())
         {
             if (!ResourceManager.Instance.HasEnoughResources(cost.type, cost.amount))
@@ -239,7 +253,6 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
         }
 
         var realBuilding = Instantiate(selectedBuildingPrefab, currentGhostBuilding.transform.position, currentGhostBuilding.transform.rotation);
-        BuildingManager.Instance.OnBuildingPlaced(realBuilding);
         currentWorker.ReceiveCommand(realBuilding.transform.position, realBuilding.gameObject);
 
         isInBuildMode = false;

@@ -4,8 +4,8 @@ using UnityEngine.UI;
 public class DayNightCycle : MonoBehaviour
 {
     [Header("Time Settings")]
-    [SerializeField] private float dayDurationInSeconds = 120f;
-    [SerializeField] private float currentTimeOfDay = 0.5f;
+    [SerializeField] private float dayDurationInSeconds = 240f;
+    [SerializeField] private float currentTimeOfDay = 0.3f;
 
     [Header("Lighting Settings")]
     [SerializeField] private Light directionalLight;

@@ -72,9 +72,6 @@ public class TreeManager : MonoBehaviour
             markedTreePositions.Remove(gridPos);
             markedTreeNodes.Remove(gridPos);
         }
-
-        Debug.Log($"tree on {gridPos} des");
-        Debug.Log($"{markedTreeNodes.Count} tree remains");
     }
 
     public bool HasTreeAt(Vector2Int gridPosition)
@@ -121,7 +118,6 @@ public class TreeManager : MonoBehaviour
     public void ToggleMarkTree(TreeNode treeNode, Vector3 worldPosition, bool mark)
     {
         Vector2Int gridPos = WorldToGrid(new Vector2(worldPosition.x, worldPosition.z));
-        Debug.Log($"tree on {gridPos} marked");
         if (mark)
         {
             if (!markedTreePositions.Contains(gridPos))

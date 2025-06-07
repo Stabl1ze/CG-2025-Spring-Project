@@ -215,7 +215,7 @@ MonoBehaviour:
   productionItems:
   - iconPrefab: {fileID: 0}
     unitPrefab: {fileID: 3591241211840497902, guid: 62eba15ea0d76424cb5480e167af3ef6, type: 3}
-    productionTime: 1
+    productionTime: 5
     costs:
     - type: 0
       amount: 10

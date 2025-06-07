@@ -255,9 +255,9 @@ public class WorkerUnit : UnitBase
             if (isCarrying)
             {
                 if (currentType == ResourceManager.ResourceType.LineR)
-                    bodyRenderer.material.color = Color.green;
+                    bodyRenderer.material.color = new Color(96, 74, 52);
                 if (currentType == ResourceManager.ResourceType.FaceR)
-                    bodyRenderer.material.color = Color.blue;
+                    bodyRenderer.material.color = new Color(255, 231, 0);
                 if (currentType == ResourceManager.ResourceType.CubeR)
                     bodyRenderer.material.color = Color.cyan;
             }

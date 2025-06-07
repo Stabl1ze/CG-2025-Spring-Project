@@ -4,11 +4,15 @@ using static WorldGenerator;
 
 public class FogOfWarSystem : MonoBehaviour
 {
+    public static FogOfWarSystem Instance { get; private set; }
+
     [Header("Settings")]
     [SerializeField] private GameObject fogPrefab;
 
     private List<FogRegion> fogRegions = new List<FogRegion>();
     private List<Clearing> allClearings = new List<Clearing>();
+    private HashSet<Clearing> unrevealedClearings = new();
+    private Dictionary<Clearing, List<GameObject>> clearingResources = new();
     private Vector2 spawnCenter;
     private float spawnRadius;
     private int mapSize;
@@ -32,10 +36,14 @@ public class FogOfWarSystem : MonoBehaviour
         this.spawnCenter = spawnCenter;
         this.spawnRadius = spawnRadius;
         this.mapSize = mapSize;
-        this.allClearings = new List<Clearing>(clearings);
+        allClearings = new List<Clearing>(clearings);
+
+        unrevealedClearings.Clear();
+        foreach (var clearing in clearings)
+            if (!clearing.isSpawn)
+                unrevealedClearings.Add(clearing);
 
         InitializePassableCells();
-
         ClearAllFogRegions();
 
         foreach (var clearing in clearings)
@@ -92,6 +100,24 @@ public class FogOfWarSystem : MonoBehaviour
         UpdateFogState();
     }
 
+    public void RegisterClearingResources(Clearing clearing, List<GameObject> resources)
+    {
+        if (!clearingResources.ContainsKey(clearing))
+            clearingResources.Add(clearing, new List<GameObject>());
+        clearingResources[clearing].AddRange(resources);
+
+        if (unrevealedClearings.Contains(clearing))
+            SetResourcesVisibility(clearing, false);
+    }
+
+    private void SetResourcesVisibility(Clearing clearing, bool visible)
+    {
+        if (clearingResources.TryGetValue(clearing, out var resources))
+            foreach (var resource in resources)
+                if (resource != null)
+                    resource.SetActive(visible);
+    }
+
     private void UpdateFogState()
     {
         HashSet<Vector2Int> reachableCells = PerformGlobalFloodFill();
@@ -104,6 +130,13 @@ public class FogOfWarSystem : MonoBehaviour
             {
                 fogRegion.SetRevealed(true);
                 revealedRegions.Add(fogRegion);
+
+                // 找到对应的空地并显示资源
+                var clearing = FindClearingByCenter(fogRegion.Center);
+                if (clearing != null && unrevealedClearings.Remove(clearing))
+                {
+                    SetResourcesVisibility(clearing, true);
+                }
             }
         }
     }
@@ -202,6 +235,31 @@ public class FogOfWarSystem : MonoBehaviour
             }
         }
         return false;
+    }
+
+    public bool IsInUnrevealedClearing(Vector3 position)
+    {
+        Vector2 pos = new(position.x, position.z);
+        foreach (var clearing in unrevealedClearings)
+        {
+            if (Vector2.Distance(pos, clearing.center) <= clearing.radius)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Clearing FindClearingByCenter(Vector2 center)
+    {
+        foreach (var clearing in allClearings)
+        {
+            if (Vector2.Distance(clearing.center, center) < 0.1f)
+            {
+                return clearing;
+            }
+        }
+        return null;
     }
 
     private Vector2Int WorldToGrid(Vector2 worldPos)

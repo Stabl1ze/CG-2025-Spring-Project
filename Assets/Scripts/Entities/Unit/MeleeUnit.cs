@@ -21,30 +21,17 @@ public class MeleeUnit : UnitBase
     {
         base.Update();
 
-        if (isEnemy)
-        {
-            if (attackTarget == null || !attackTarget.activeInHierarchy)
-            {
-                FindNearestEnemy();
-            }
+        if (attackTarget == null || !attackTarget.activeInHierarchy)
+            FindNearestEnemy();
 
-            if (attackTarget != null && !isAttacking)
-            {
-                HandleEnemyAI();
-            }
-        }
+        if (attackTarget != null && !isAttacking)
+            HandleEnemyAI();
 
         if (isAttacking)
-        {
             HandleAttackAnimation();
-        }
         else if (attackTarget != null && !isMoving)
-        {
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
-            {
                 StartAttack();
-            }
-        }
     }
 
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)

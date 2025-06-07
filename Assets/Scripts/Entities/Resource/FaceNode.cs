@@ -1,4 +1,4 @@
-public class TreeNode : ResourceNode
+public class FaceNode : ResourceNode
 {
     protected override void DepleteNode() 
     {

@@ -133,10 +133,12 @@ public class ResourceNode : MonoBehaviour, ISelectable
     protected virtual void DepleteNode()
     {
         OnDeselect();
-        SelectionManager.Instance.DeselectThis(this);
+
+        if (SelectionManager.Instance != null)
+            SelectionManager.Instance.DeselectThis(this);
+
         if (gameObject != null)
             Destroy(gameObject);
-        Debug.Log($"{resourceType} node depleted");
     }
 
     protected void CreateCircleIndicator()

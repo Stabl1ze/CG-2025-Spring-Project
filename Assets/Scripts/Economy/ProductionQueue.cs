@@ -20,6 +20,10 @@ public class ProductionQueue : MonoBehaviour
     [SerializeField] private ProductionItem[] productionItems;
     [SerializeField] private int maxQueueSize = 5;
 
+    private float currentProductionProgress = 0f;
+    public float CurrentProductionProgress => currentProductionProgress;
+    public float CurrentProductionTime => queue.Count > 0 ? queue.Peek().productionTime : 0f;
+
     private Queue<ProductionItem> queue = new();
     public event Action OnQueueChanged;
     private bool isProducing = false;
@@ -66,18 +70,25 @@ public class ProductionQueue : MonoBehaviour
         while (queue.Count > 0)
         {
             ProductionItem currentItem = queue.Peek();
+            currentProductionProgress = 0f;
 
-            yield return new WaitForSeconds(currentItem.productionTime);
+            float timer = 0f;
+            while (timer < currentItem.productionTime)
+            {
+                timer += Time.deltaTime;
+                currentProductionProgress = timer / currentItem.productionTime;
+                OnQueueChanged?.Invoke();
+                yield return null;
+            }
 
             GameObject newUnit = Instantiate(currentItem.unitPrefab, building.SpawnPoint.position, building.SpawnPoint.rotation);
 
             // Move to rally point if available
             if (building.RallyPoint != null && newUnit.TryGetComponent<UnitBase>(out var unitBase))
-            {
                 unitBase.ReceiveCommand(building.RallyPoint.position, null);
-            }
 
             queue.Dequeue();
+            currentProductionProgress = 0f;
             OnQueueChanged?.Invoke();
         }
 
