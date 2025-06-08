@@ -65,6 +65,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         {
             float overlap = totalRadius - distance;
             Vector3 pushVector = 0.5f * overlap * direction;
+            pushVector.y = 0;
             Rigidbody otherRb = other.attachedRigidbody;
             if (otherRb != null)
                 otherRb.position += pushVector;

@@ -13,8 +13,9 @@ public class MeleeUnit : UnitBase
     [SerializeField] private float sensingRange = 5f;
 
     private float lastAttackTime;
-    private GameObject attackTarget;
+    private GameObject attackTarget = null;
     private bool isAttacking = false;
+    private bool isMoveAttacking = false;
     private Quaternion originalRotation;
     private float attackProgress;
 
@@ -22,7 +23,7 @@ public class MeleeUnit : UnitBase
     {
         base.Update();
 
-        if (attackTarget == null && !isMoving)
+        if ((attackTarget == null && !isMoving) || isMoveAttacking)
             FindNearestEnemy();
 
         if (attackTarget != null && !isAttacking)
@@ -39,10 +40,12 @@ public class MeleeUnit : UnitBase
     {
         if (isEnemy) return;
 
-        isAttacking = false;
         attackTarget = null;
+        isAttacking = false;
+        isMoveAttacking = false;
 
-        if (targetObject != null)
+        if (targetObject == null) isMoveAttacking = true;
+        else
         {
             bool targetIsEnemy = false;
 

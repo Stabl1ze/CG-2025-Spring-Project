@@ -11,6 +11,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] public BuildingUI buildingUI;
     [SerializeField] public ResourceNodeUI resourceNodeUI;
     [SerializeField] public ConstructionUI constructionUI;
+    [SerializeField] public VictoryUI victoryUI;
     [SerializeField] public EscUI escUI;
 
     private readonly List<IUIComponent> allUIComponents = new();
@@ -37,6 +38,8 @@ public class UIManager : MonoBehaviour
         if (buildingUI != null) allUIComponents.Add(buildingUI);
         if (resourceNodeUI != null) allUIComponents.Add(resourceNodeUI);
         if (escUI != null) allUIComponents.Add(escUI);
+        if (victoryUI != null) allUIComponents.Add(victoryUI);
+
 
         // Initialize each component
         foreach (var component in allUIComponents)
@@ -71,6 +74,11 @@ public class UIManager : MonoBehaviour
 
     public void ShowEscPanel() => escUI?.Show();
     public void HideEscPanel() => escUI?.Hide();
+
+    public void ShowVictoryPanel() => victoryUI?.Show();
+    public void HideVictoryPanel() => victoryUI?.Hide();
+    public void SetCondItionActive(bool enemy, bool beacon) => victoryUI?.SetConditionActive(enemy, beacon);
+    public void UpdateVictoryPanel(int enemy, bool beacon) => victoryUI?.UpdateVictoryDisplay(enemy, beacon);
     #endregion
 
     #region Minimap Implementation
@@ -119,9 +127,20 @@ public class UIManager : MonoBehaviour
             ResourceManager.Instance?.AddResources(ResourceManager.ResourceType.CubeR, 100);
         }
 
-        if(GUILayout.Button("Test Win Condition"))
+        if (GUILayout.Button("Test Win Condition 1"))
         {
-            GameManager.Instance.NotifyGameOver(true);
+            Beacon beacon = new();
+            GameManager.Instance.CheckBeaconBuilt(beacon);
+        }
+
+        if (GUILayout.Button("Test Win Condition 2"))
+        {
+            GameManager.Instance.CheckEnemiesDefeated();
+        }
+        
+        if (GUILayout.Button("Test Lost Condition"))
+        {
+            GameManager.Instance.CheckTimeLimit(6, 5);
         }
         GUILayout.EndArea();
     }

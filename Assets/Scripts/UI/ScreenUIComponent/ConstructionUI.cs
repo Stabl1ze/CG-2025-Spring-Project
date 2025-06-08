@@ -111,7 +111,12 @@ public class ConstructionUI : MonoBehaviour, IUIComponent
             costText.text = "Cost: ";
             foreach (var cost in costs)
             {
-                costText.text += $"{cost.type}:{cost.amount} ";
+                if (cost.type == ResourceManager.ResourceType.LineR)
+                    costText.text += $"Line:{cost.amount}  ";
+                if (cost.type == ResourceManager.ResourceType.FaceR)
+                    costText.text += $"Face:{cost.amount}  ";
+                if (cost.type == ResourceManager.ResourceType.CubeR)
+                    costText.text += $"Cube:{cost.amount}  ";
             }
         }
 

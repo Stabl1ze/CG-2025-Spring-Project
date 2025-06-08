@@ -3,34 +3,47 @@ using System.Collections;
 
 public class Ranged2Unit : UnitBase
 {
-    [Header("Ranged2 Settings")]
-    [SerializeField] private float attackRange = 6f;
+    [Header("Ranged Settings")]
+    [SerializeField] private float baseAttackRange = 6f;
     [SerializeField] private float attackCooldown = 1.5f;
-    [SerializeField] private int attackDamage = 8;
-    [SerializeField] private GameObject projectilePrefab; 
+    [SerializeField] private int baseAttackDamage = 8;
+    [SerializeField] private GameObject projectilePrefab;
     [SerializeField] private Transform firePoint;
+
+    [Header("Night Debuff Settings")]
+    [SerializeField] private float nightRangeDebuff = 2f;
+    [SerializeField] private int nightDamageDebuff = 2;
 
     [Header("AI Settings")]
     [SerializeField] private float sensingRange = 10f;
 
     private float lastAttackTime;
-    private GameObject attackTarget;
+    private GameObject attackTarget = null;
+    private bool isMoveAttacking = false;
+    private float currentAttackRange;
+    private int currentAttackDamage;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        currentAttackRange = baseAttackRange;
+        currentAttackDamage = baseAttackDamage;
+    }
 
     protected override void Update()
     {
         base.Update();
 
-
-        if (attackTarget == null && !isMoving)
+        if ((attackTarget == null && !isMoving) || isMoveAttacking)
             FindNearestEnemy();
 
         if (attackTarget != null)
-            HandleEnemyAI();
+            HandleAttackAI();
 
         if (!isMoving && attackTarget != null)
         {
             float distance = Vector3.Distance(transform.position, attackTarget.transform.position);
-            if (distance <= attackRange && Time.time - lastAttackTime >= attackCooldown)
+            if (distance <= currentAttackRange && Time.time - lastAttackTime >= attackCooldown)
             {
                 TurnToTarget();
                 if (Quaternion.Angle(transform.rotation, Quaternion.LookRotation(attackTarget.transform.position - transform.position)) < 5f)
@@ -45,8 +58,12 @@ public class Ranged2Unit : UnitBase
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
         if (isEnemy) return;
+
         attackTarget = null;
-        if (targetObject != null)
+        isMoveAttacking = false;
+
+        if (targetObject == null) isMoveAttacking = true;
+        else
         {
             bool targetIsEnemy = false;
 
@@ -75,6 +92,21 @@ public class Ranged2Unit : UnitBase
         Quaternion targetRotation = Quaternion.LookRotation(direction);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
     }
+
+    public void ApplyNightDebuff(bool isNight)
+    {
+        if (isNight)
+        {
+            currentAttackRange = Mathf.Max(1f, baseAttackRange - nightRangeDebuff);
+            currentAttackDamage = Mathf.Max(1, baseAttackDamage - nightDamageDebuff);
+        }
+        else
+        {
+            currentAttackRange = baseAttackRange;
+            currentAttackDamage = baseAttackDamage;
+        }
+    }
+
     private void Attack()
     {
         lastAttackTime = Time.time;
@@ -83,22 +115,22 @@ public class Ranged2Unit : UnitBase
         {
             GameObject proj = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
             Projectile p = proj.GetComponent<Projectile>();
-            p.SetTarget(attackTarget, attackDamage);
+            p.SetTarget(attackTarget, currentAttackDamage);
             StartCoroutine(ShootSecondProjectile());
         }
     }
 
-    private void HandleEnemyAI()
+    private void HandleAttackAI()
     {
         if (attackTarget == null) return;
 
         float distance = Vector3.Distance(transform.position, attackTarget.transform.position);
-        if (distance > attackRange && distance <= sensingRange)
+        if (distance > currentAttackRange && distance <= sensingRange)
         {
             targetPosition = attackTarget.transform.position;
             isMoving = true;
         }
-        else if (distance <= attackRange)
+        else if (distance <= currentAttackRange)
         {
             isMoving = false;
         }
@@ -150,7 +182,7 @@ public class Ranged2Unit : UnitBase
         {
             float distance = Vector3.Distance(transform.position, attackTarget.transform.position);
 
-            if (distance <= attackRange)
+            if (distance <= currentAttackRange)
             {
                 isMoving = false;
                 return;
@@ -172,7 +204,7 @@ public class Ranged2Unit : UnitBase
         {
             GameObject proj2 = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
             Projectile p2 = proj2.GetComponent<Projectile>();
-            p2.SetTarget(attackTarget, attackDamage);
+            p2.SetTarget(attackTarget, currentAttackDamage);
         }
     }
 }

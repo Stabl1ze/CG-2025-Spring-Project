@@ -4,23 +4,10 @@ using static WorldGenerator;
 
 public class PathManager : MonoBehaviour
 {
-    public static PathManager Instance { get; private set; }
 
     private HashSet<Vector2Int> passableCells = new();
     private float cellSize = 1f;
     private int mapSize;
-
-    private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
-    }
 
     public void Initialize(int mapSize)
     {

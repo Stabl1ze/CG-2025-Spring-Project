@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+锘縰sing System.Collections.Generic;
 using UnityEngine;
 using static WorldGenerator;
 
@@ -9,16 +9,20 @@ public class FogOfWarSystem : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private GameObject fogPrefab;
 
-    private List<FogRegion> fogRegions = new List<FogRegion>();
-    private List<Clearing> allClearings = new List<Clearing>();
+    private List<FogRegion> fogRegions = new();
+    private List<Clearing> allClearings = new();
     private HashSet<Clearing> unrevealedClearings = new();
     private Dictionary<Clearing, List<GameObject>> clearingResources = new();
+    private Dictionary<Clearing, List<GameObject>> clearingEnemies = new();
     private Vector2 spawnCenter;
     private float spawnRadius;
+    private int mapSize;
     private const float cellSize = 1f;
 
     private HashSet<Vector2Int> passableCells = new();
     private HashSet<FogRegion> revealedRegions = new();
+
+    private bool allowUpdates = true;
 
     private void Awake()
     {
@@ -37,15 +41,45 @@ public class FogOfWarSystem : MonoBehaviour
         TreeManager.OnTreeRemoved += OnTreeRemoved;
     }
 
+    private void Update()
+    {
+        if (GameManager.Instance?.CurrentGameState == GameManager.GameState.GameOver)
+            allowUpdates = false;
+    }
+
     private void OnDestroy()
     {
         TreeManager.OnTreeRemoved -= OnTreeRemoved;
+
+        allowUpdates = false;
+
+        foreach (FogRegion fogRegion in fogRegions)
+            if (fogRegion != null)
+                fogRegion.ClearFogCover();
+        fogRegions.Clear();
+
+        foreach (var pair in clearingResources)
+            if (pair.Value != null)
+            {
+                foreach (var resourceNode in pair.Value)
+                    Destroy(resourceNode);
+                pair.Value.Clear();
+            }
+
+        foreach (var pair in clearingEnemies)
+            if (pair.Value != null)
+            {
+                foreach (var resourceNode in pair.Value)
+                    Destroy(resourceNode);
+                pair.Value.Clear();
+            }
     }
 
     public void Initialize(List<Clearing> clearings, Vector2 spawnCenter, float spawnRadius, int mapSize)
     {
         this.spawnCenter = spawnCenter;
         this.spawnRadius = spawnRadius;
+        this.mapSize = mapSize;
         allClearings = new List<Clearing>(clearings);
 
         unrevealedClearings.Clear();
@@ -53,6 +87,7 @@ public class FogOfWarSystem : MonoBehaviour
             if (!clearing.isSpawn)
                 unrevealedClearings.Add(clearing);
 
+        InitializePassableCells();
         ClearAllFogRegions();
 
         foreach (var clearing in clearings)
@@ -67,6 +102,26 @@ public class FogOfWarSystem : MonoBehaviour
         }
 
         UpdateFogState();
+    }
+
+    private void InitializePassableCells()
+    {
+        passableCells.Clear();
+
+        int halfSize = mapSize / 2;
+        for (int x = -halfSize; x <= halfSize; x++)
+        {
+            for (int y = -halfSize; y <= halfSize; y++)
+            {
+                Vector2 worldPos = new Vector2(x, y);
+                Vector2Int gridPos = WorldToGrid(worldPos);
+
+                if (IsInAnyClearing(worldPos) && !HasTreeAt(gridPos))
+                {
+                    passableCells.Add(gridPos);
+                }
+            }
+        }
     }
 
     private void ClearAllFogRegions()
@@ -84,7 +139,10 @@ public class FogOfWarSystem : MonoBehaviour
 
     private void OnTreeRemoved(Vector2Int removedTreePosition)
     {
-        PathManager.Instance.AddPassableCell(removedTreePosition);
+        if (!allowUpdates) return;
+
+        passableCells.Add(removedTreePosition);
+
         UpdateFogState();
     }
 
@@ -93,17 +151,26 @@ public class FogOfWarSystem : MonoBehaviour
         if (!clearingResources.ContainsKey(clearing))
             clearingResources.Add(clearing, new List<GameObject>());
         clearingResources[clearing].AddRange(resources);
-
-        if (unrevealedClearings.Contains(clearing))
-            SetResourcesVisibility(clearing, false);
     }
 
-    private void SetResourcesVisibility(Clearing clearing, bool visible)
+    public void RegisterClearingEnemies(Clearing clearing, List<GameObject> enemies)
+    {
+        if (!clearingEnemies.ContainsKey(clearing))
+            clearingEnemies.Add(clearing, new List<GameObject>());
+        clearingEnemies[clearing].AddRange(enemies);
+    }
+
+    private void ActiveClearing(Clearing clearing)
     {
         if (clearingResources.TryGetValue(clearing, out var resources))
             foreach (var resource in resources)
                 if (resource != null)
-                    resource.SetActive(visible);
+                    resource.SetActive(true);
+
+        if (clearingEnemies.TryGetValue(clearing, out var enemies))
+            foreach (var enemie in enemies)
+                if (enemie != null)
+                    enemie.SetActive(true);
     }
 
     private void UpdateFogState()
@@ -119,12 +186,9 @@ public class FogOfWarSystem : MonoBehaviour
                 fogRegion.SetRevealed(true);
                 revealedRegions.Add(fogRegion);
 
-                // 找到对应的空地并显示资源
                 var clearing = FindClearingByCenter(fogRegion.Center);
                 if (clearing != null && unrevealedClearings.Remove(clearing))
-                {
-                    SetResourcesVisibility(clearing, true);
-                }
+                    ActiveClearing(clearing);
             }
         }
     }
@@ -208,6 +272,23 @@ public class FogOfWarSystem : MonoBehaviour
         return grids;
     }
 
+    private bool HasTreeAt(Vector2Int gridPosition)
+    {
+        return TreeManager.Instance != null && TreeManager.Instance.HasTreeAt(gridPosition);
+    }
+
+    private bool IsInAnyClearing(Vector2 position)
+    {
+        foreach (var clearing in allClearings)
+        {
+            if (Vector2.Distance(position, clearing.center) <= clearing.radius)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public bool IsInUnrevealedClearing(Vector3 position)
     {
         Vector2 pos = new(position.x, position.z);
@@ -231,6 +312,13 @@ public class FogOfWarSystem : MonoBehaviour
             }
         }
         return null;
+    }
+
+    private Vector2Int WorldToGrid(Vector2 worldPos)
+    {
+        return new Vector2Int(
+            Mathf.RoundToInt(worldPos.x / cellSize),
+            Mathf.RoundToInt(worldPos.y / cellSize));
     }
 
     private Vector2 GridToWorld(Vector2Int gridPos)

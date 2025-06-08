@@ -21,7 +21,7 @@ public class Projectile : MonoBehaviour
         }
 
         Vector3 direction = (target.transform.position - transform.position).normalized;
-        transform.position += direction * speed * Time.deltaTime;
+        transform.position += speed * Time.deltaTime * direction;
 
         if (Vector3.Distance(transform.position, target.transform.position) < 0.5f)
         {

@@ -82,6 +82,9 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 
     protected virtual void OnDestroy()
     {
+        if (isEnemy)
+            GameManager.Instance?.CheckEnemiesDefeated();
+
         if (healthBarInstance != null)
         {
             Destroy(healthBarInstance);
@@ -108,6 +111,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (overlap > 0)
         {
             Vector3 pushVector = -0.5f * overlap * normalizedDirection;
+            pushVector.y = 0;
             if (other.gameObject.layer == LayerMask.NameToLayer("Buildings") 
                 || other.gameObject.layer == LayerMask.NameToLayer("Resources"))
                 transform.position += pushVector;
@@ -149,7 +153,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     public virtual void OnDeselect()
     {
         isSelected = false;
-        if (!isEnemy)
+        if (!isEnemy && selectionIndicator != null)
             selectionIndicator.SetActive(false);
         ShowHealthBar(false);
         if (UIManager.Instance != null)
@@ -208,6 +212,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (healthBarSlider != null)
         {
             healthBarSlider.gameObject.SetActive(show);
+            healthBarInstance.transform.SetAsFirstSibling();
         }
     }
 
@@ -244,6 +249,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (healthBarPrefab == null || uiCanvas == null) return;
 
         healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarInstance.transform.SetAsFirstSibling();
         healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
 
         if (healthBarSlider != null)
@@ -332,6 +338,21 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         isEnemy = true;
         SetEnemyIndicator();
+    }
+
+    public void SetDifficulty(int diff)
+    {
+        if (diff == 1)
+        {
+            maxHP *= 1.25f;
+            HP = maxHP;
+        }
+        else if (diff == 2)
+        {
+            maxHP *= 1.5f;
+            HP = maxHP;
+            moveSpeed *= 1.2f;
+        }
     }
 
     private IEnumerator HideHealthBarAfterDelay(float delay)

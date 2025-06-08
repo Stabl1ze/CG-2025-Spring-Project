@@ -12,6 +12,7 @@ public class BuildingUI : MonoBehaviour, IUIComponent
     [SerializeField] private TMP_Text buildingHPText;
     [SerializeField] private Transform productionButtonParent;
     [SerializeField] private GameObject productionButtonPrefab;
+    [SerializeField] private Button cancelProductionButton;
     [SerializeField] private TMP_Text queueCountText;
 
     [Header("Queue Visualization")]
@@ -22,6 +23,11 @@ public class BuildingUI : MonoBehaviour, IUIComponent
     [SerializeField] private Image progressBarFill;
     [SerializeField] private Slider progressBarSlider;
 
+    [Header("Tooltip Settings")]
+    [SerializeField] private FloatingTooltip tooltip;
+    [SerializeField] private float tooltipDelay = 0.5f;
+    private float hoverTimer;
+    private GameObject currentHoveredButton;
 
     public BuildingBase CurrentBuilding { get; private set; }
     public ProductionBuilding CurrentPBuilding { get; private set; }
@@ -29,6 +35,16 @@ public class BuildingUI : MonoBehaviour, IUIComponent
 
     private readonly List<GameObject> activeButtons = new();
     private readonly List<GameObject> queueVisualItems = new();
+
+    private void Update()
+    {
+        if (currentHoveredButton != null)
+        {
+            hoverTimer += Time.deltaTime;
+            if (hoverTimer >= tooltipDelay && tooltip != null)
+                tooltip.UpdatePosition(currentHoveredButton.transform.position);
+        }
+    }
 
     public void Initialize()
     {
@@ -46,6 +62,11 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         if (CurrentPBuilding != null)
         {
             CurrentPBuilding.ProductionQueue.OnQueueChanged -= UpdateQueueDisplay;
+        }
+        if (cancelProductionButton != null)
+        {
+            cancelProductionButton.onClick.RemoveAllListeners();
+            cancelProductionButton.gameObject.SetActive(false);
         }
         ClearProductionUI();
         CurrentBuilding = null;
@@ -75,9 +96,15 @@ public class BuildingUI : MonoBehaviour, IUIComponent
             var items = pBuilding.ProductionQueue.GetAvailableItems();
             for (int i = 0; i < items.Length; i++)
                 CreateProductionButton(i, items[i]);
+
+            SetupCancelButton();
         }
         else
+        {
             queueCountText.gameObject.SetActive(false);
+            if (cancelProductionButton != null)
+                cancelProductionButton.gameObject.SetActive(false);
+        }
 
         Show();
     }
@@ -94,6 +121,21 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         buttonObj.SetActive(true);
         buttonObj.transform.SetAsLastSibling();
 
+        // 添加事件触发器
+        var eventTrigger = buttonObj.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+
+        // 鼠标进入事件
+        var pointerEnter = new UnityEngine.EventSystems.EventTrigger.Entry();
+        pointerEnter.eventID = UnityEngine.EventSystems.EventTriggerType.PointerEnter;
+        pointerEnter.callback.AddListener((e) => OnButtonPointerEnter(buttonObj, item));
+        eventTrigger.triggers.Add(pointerEnter);
+
+        // 鼠标离开事件
+        var pointerExit = new UnityEngine.EventSystems.EventTrigger.Entry();
+        pointerExit.eventID = UnityEngine.EventSystems.EventTriggerType.PointerExit;
+        pointerExit.callback.AddListener((e) => OnButtonPointerExit());
+        eventTrigger.triggers.Add(pointerExit);
+
         button.onClick.AddListener(() =>
         {
             if (CurrentPBuilding.ProductionQueue.TryAddToQueue(index))
@@ -107,6 +149,48 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         });
     }
 
+    private void OnButtonPointerEnter(GameObject button, ProductionQueue.ProductionItem item)
+    {
+        currentHoveredButton = button;
+        hoverTimer = 0f;
+
+        // 构建造价信息字符串
+        string costText = "Cost:\n";
+        foreach (var cost in item.costs)
+        {
+            costText += $"{cost.type}: {cost.amount}\n";
+        }
+
+        // 显示工具提示
+        if (tooltip != null)
+        {
+            tooltip.ShowTooltip(costText, button.transform.position);
+        }
+    }
+
+    private void OnButtonPointerExit()
+    {
+        currentHoveredButton = null;
+        hoverTimer = 0f;
+
+        // 隐藏工具提示
+        if (tooltip != null)
+        {
+            tooltip.HideTooltip();
+        }
+    }
+
+    private void SetupCancelButton()
+    {
+        if (cancelProductionButton != null)
+        {
+            cancelProductionButton.gameObject.SetActive(true);
+            cancelProductionButton.onClick.RemoveAllListeners();
+            cancelProductionButton.onClick.AddListener(CancelCurrentProduction);
+            UpdateCancelButtonState();
+        }
+    }
+
     private void UpdateQueueDisplay()
     {
         if (CurrentPBuilding == null) return;
@@ -117,6 +201,14 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         UpdateProgressBar();
 
         UpdateQueueVisualization();
+
+        UpdateCancelButtonState();
+    }
+
+    private void CancelCurrentProduction()
+    {
+        if (CurrentPBuilding?.ProductionQueue != null && CurrentPBuilding.ProductionQueue.IsProducing())
+            CurrentPBuilding.ProductionQueue.CancelCurrentProduction();
     }
 
     private void UpdateQueueVisualization()
@@ -147,16 +239,10 @@ public class BuildingUI : MonoBehaviour, IUIComponent
 
             // Set icon image and text
             var image = icon.GetComponent<Image>();
-            var text = icon.GetComponentInChildren<TMP_Text>();
 
             // Load icon sprite
             var iconSprite = Resources.Load<Sprite>($"Icons/{item.unitPrefab.name}");
             if (iconSprite != null) image.sprite = iconSprite;
-
-            if (text != null) text.text = (i == 0 && CurrentPBuilding.ProductionQueue.IsProducing()) ?
-                $"{Mathf.RoundToInt(CurrentPBuilding.ProductionQueue.CurrentProductionProgress * 100)}%" :
-                item.unitPrefab.name;
-
             queueVisualItems.Add(icon);
         }
     }
@@ -168,11 +254,23 @@ public class BuildingUI : MonoBehaviour, IUIComponent
         bool isProducing = CurrentPBuilding.ProductionQueue.IsProducing();
         progressBarSlider.gameObject.SetActive(isProducing);
 
-        if (isProducing)
+        float progress = CurrentPBuilding.ProductionQueue.CurrentProductionProgress;
+        progressBarSlider.value = progress;
+        progressBarFill.color = Color.Lerp(Color.red, Color.green, progress);
+    }
+
+    private void UpdateCancelButtonState()
+    {
+        if (cancelProductionButton != null && CurrentPBuilding?.ProductionQueue != null)
         {
-            float progress = CurrentPBuilding.ProductionQueue.CurrentProductionProgress;
-            progressBarSlider.value = progress;
-            progressBarFill.color = Color.Lerp(Color.red, Color.green, progress);
+            bool canCancel = CurrentPBuilding.ProductionQueue.IsProducing();
+            cancelProductionButton.interactable = canCancel;
+
+            var buttonText = cancelProductionButton.GetComponentInChildren<TMP_Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = canCancel ? "Cancel" : "Invalid";
+            }
         }
     }
 

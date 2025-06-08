@@ -35,4 +35,10 @@ public class FogRegion : MonoBehaviour
     {
         return Vector2.Distance(point, center) <= radius;
     }
+
+    public void ClearFogCover()
+    {
+        if (fogCover != null)
+            Destroy(fogCover);
+    }
 }

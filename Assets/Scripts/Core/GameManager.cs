@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -7,6 +8,11 @@ public class GameManager : MonoBehaviour
     [Header("Game Settings")]
     [SerializeField] bool debugMode = false;
 
+    [Header("Scene Settings")]
+    [SerializeField] private string gameplaySceneName = "OverWorld";
+    [SerializeField] private string endMenuSceneName = "EndMenu";
+    [SerializeField] private float gameOverDelay = 3f;
+
     [Header("Subsystems")]
     [SerializeField] private InputManager inputManager;
     [SerializeField] private SelectionManager selectionManager;
@@ -14,6 +20,7 @@ public class GameManager : MonoBehaviour
 
     private bool beaconBuilt = false;
     private int enemiesDefeated = 0;
+    private bool victory = false;
 
     public enum GameState { MainMenu, Playing, Paused, GameOver }
     public GameState CurrentGameState { get; private set; }
@@ -36,9 +43,6 @@ public class GameManager : MonoBehaviour
     {
         if (BuildingManager.Instance != null)
             BuildingManager.Instance.OnBuildingConstructed -= CheckBeaconBuilt;
-
-        if (UnitManager.Instance != null)
-            UnitManager.Instance.OnEnemyDestroyed -= CheckEnemiesDefeated;
     }
 
     private void InitializeGame()
@@ -48,36 +52,44 @@ public class GameManager : MonoBehaviour
         enemiesDefeated = 0;
 
         BuildingManager.Instance.OnBuildingConstructed += CheckBeaconBuilt;
-        UnitManager.Instance.OnEnemyDestroyed += CheckEnemiesDefeated;
+
+        UIManager.Instance.SetCondItionActive(GameConfig.UseDefeatEnemiesCondition, GameConfig.UseBuildBeaconCondition);
 
         DebugLog("All systems initialized");
     }
 
-    private void CheckBeaconBuilt(BuildingBase building)
+    public void CheckBeaconBuilt(BuildingBase building)
     {
         if (!GameConfig.UseBuildBeaconCondition) return;
 
         if (building is Beacon)
         {
+            // Debug.Log("Beacon Built");
             beaconBuilt = true;
+            UIManager.Instance.UpdateVictoryPanel(enemiesDefeated, beaconBuilt);
             CheckVictoryConditions();
         }
     }
 
-    private void CheckEnemiesDefeated()
+    public void CheckEnemiesDefeated()
     {
-        if (!GameConfig.UseDefeatEnemiesCondition) return;
+        if (victory) return;
 
         enemiesDefeated++;
+        // Debug.Log($"{enemiesDefeated} enemy defeated");
+
+        if (!GameConfig.UseDefeatEnemiesCondition) return;
+
+        UIManager.Instance.UpdateVictoryPanel(enemiesDefeated, beaconBuilt);
+
         if (enemiesDefeated >= GameConfig.EnemiesToDefeat)
-        {
             CheckVictoryConditions();
-        }
+ 
     }
 
     private void CheckVictoryConditions()
     {
-        bool victory = true;
+        victory = true;
 
         if (GameConfig.UseDefeatEnemiesCondition && enemiesDefeated < GameConfig.EnemiesToDefeat)
             victory = false;
@@ -88,6 +100,15 @@ public class GameManager : MonoBehaviour
         if (victory)
         {
             NotifyGameOver(true);
+        }
+    }
+
+    public void CheckTimeLimit(int currentDay, int totalDays)
+    {
+        if (currentDay > totalDays)
+        {
+            Debug.Log("Ê±¼äºÄ¾¡£¬ÓÎÏ·Ê§°Ü");
+            NotifyGameOver(false);
         }
     }
 
@@ -107,6 +128,14 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void SaveGameState(bool playerWon)
+    {
+        PlayerPrefs.SetInt("LastGameResult", playerWon ? 1 : 0);
+        PlayerPrefs.SetInt("TotalEnemiesDefeated", enemiesDefeated);
+        PlayerPrefs.SetInt("TotalUnitProduced", UnitManager.Instance.ProducedUnitCount);
+        PlayerPrefs.Save();
+    }
+
     private void DebugLog(string message)
     {
         if (debugMode)
@@ -119,12 +148,42 @@ public class GameManager : MonoBehaviour
     {
         return debugMode;
     }
-    
+
     public void NotifyGameOver(bool playerWon)
     {
         ChangeGameState(GameState.GameOver);
         DebugLog($"Game Over - Player {(playerWon ? "won" : "lost")}");
+
+        SaveGameState(playerWon);
+
+        Invoke(nameof(LoadEndMenu), gameOverDelay);
+        
+        StartCoroutine(UnloadGameSceneResources(playerWon));
     }
 
+    private void LoadEndMenu()
+    {
+        SceneManager.LoadScene(endMenuSceneName, LoadSceneMode.Single);
+    }
 
+    private System.Collections.IEnumerator UnloadGameSceneResources(bool playerWon)
+    {
+        StopAllCoroutines();
+
+        UnitManager.Instance.CleanUpUnits();
+
+        if (SceneManager.sceneCount > 1)
+        {
+            AsyncOperation unloadOp = SceneManager.UnloadSceneAsync(gameplaySceneName);
+            while (!unloadOp.isDone)
+            {
+                yield return null;
+            }
+        }
+
+        // Debug.Log($"Memory Before GC: {System.GC.GetTotalMemory(false) / 1024 / 1024}MB");
+        System.GC.Collect();
+        // Debug.Log($"Memory After GC: {System.GC.GetTotalMemory(true) / 1024 / 1024}MB");
+        Resources.UnloadUnusedAssets();
+    }
 }

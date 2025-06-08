@@ -113,6 +113,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         {
             float overlap = totalRadius - distance;
             Vector3 pushVector = 0.5f * overlap * direction;
+            pushVector.y = 0;
             Rigidbody otherRb = other.attachedRigidbody;
             if (otherRb != null)
                 otherRb.position += pushVector;
@@ -285,6 +286,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         if (healthBarPrefab == null || uiCanvas == null) return;
 
         healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarInstance.transform.SetAsFirstSibling();
         healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
 
         if (healthBarSlider != null)

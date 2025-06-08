@@ -3,7 +3,6 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using static WorldGenerator.Clearing;
-using Unity.VisualScripting;
 
 public class WorldGenerator : MonoBehaviour
 {
@@ -61,8 +60,10 @@ public class WorldGenerator : MonoBehaviour
     [SerializeField] private Material groundMaterial;
     [SerializeField] private Color color1 = Color.white;
     [SerializeField] private Color color2 = Color.black;
-    [SerializeField] private float cellSize = 1f; // 每个格子1单位
-    [SerializeField] private float groundSize = 100f; // 地面总大小100单位
+    [SerializeField] private float cellSize = 1f;
+    [SerializeField] private float groundSize = 100f;
+
+    private int difficulty;
 
     private void Awake()
     {
@@ -79,6 +80,9 @@ public class WorldGenerator : MonoBehaviour
 
     public void GenerateNewWorld()
     {
+        difficulty = PlayerPrefs.GetInt("GameDifficulty", 0);
+        // Debug.Log(difficulty);
+
         StartCoroutine(GenerateWorldRoutine());
     }
 
@@ -389,9 +393,12 @@ public class WorldGenerator : MonoBehaviour
         depot.CompleteConstruction();
 
         Vector3 worker1Pos = spawnCenterV3 + new Vector3(-3f, 0.5f, 3f);
-        Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
+        var unit1 = Instantiate(workerPrefab, worker1Pos, Quaternion.identity);
         Vector3 worker2Pos = spawnCenterV3 + new Vector3(3f, 0.5f, 3f);
-        Instantiate(workerPrefab, worker2Pos, Quaternion.identity);
+        var unit2 = Instantiate(workerPrefab, worker2Pos, Quaternion.identity);
+
+        UnitManager.Instance.RegisterUnit(unit1);
+        UnitManager.Instance.RegisterUnit(unit2);
     }
     #endregion
 
@@ -465,9 +472,9 @@ public class WorldGenerator : MonoBehaviour
     #region Enemy Spawn
     private void SpawnEnemies(List<Clearing> clearings)
     {
-        if (enemyPrefab == null)
+        if (enemyPrefab == null || enemyPrefab.Length < 4)
         {
-            Debug.LogWarning("Enemy melee prefab not assigned!");
+            Debug.LogWarning("Enemy prefabs not properly assigned!");
             return;
         }
 
@@ -475,45 +482,63 @@ public class WorldGenerator : MonoBehaviour
 
         foreach (var clearing in clearings)
         {
-            if (clearing.isSpawn || enemyPrefab == null)
+            if (clearing.isSpawn)
                 continue;
 
-            int enemyCount = GetEnemyCountByClearingSize(clearing.size);
-            SpawnEnemiesInClearing(clearing, enemyCount, enemiesParent.transform);
+            (int type0Count, int type1Count, int type2or3Count) = GetEnemyCountsByClearingSize(clearing.size);
+            int totalCount = type0Count + type1Count + type2or3Count;
+            SpawnEnemiesInClearing(clearing, type0Count, 0, totalCount, 0, enemiesParent.transform);
+            SpawnEnemiesInClearing(clearing, type1Count, type0Count, totalCount, 1, enemiesParent.transform);
+
+            if (type2or3Count > 0)
+            {
+                int enemyType = Random.Range(2, 4); // Randomly choose between 2 and 3
+                SpawnEnemiesInClearing(clearing, type2or3Count, type0Count + type1Count, totalCount, enemyType, enemiesParent.transform);
+            }
         }
     }
 
-    private int GetEnemyCountByClearingSize(ClearingSize size)
+    private (int type0Count, int type1Count, int type2or3Count) GetEnemyCountsByClearingSize(ClearingSize size)
     {
         return size switch
         {
-            ClearingSize.Small => 1,
-            ClearingSize.Medium => 2,
-            ClearingSize.Large => 4,
-            _ => 0
+            ClearingSize.Small => (2, 0, 0),
+            ClearingSize.Medium => (2, 2, 0),
+            ClearingSize.Large => (2, 2, 2),
+            _ => (0, 0, 0)
         };
     }
 
-    private void SpawnEnemiesInClearing(Clearing clearing, int count, Transform parent)
+    private void SpawnEnemiesInClearing(Clearing clearing, int count, int prevCount, int totalCount, int enemyType, Transform parent)
     {
+        if (count <= 0) return;
+
+        List<GameObject> enemies = new();
+
         float radius = clearing.radius * 0.3f;
         Vector3 center = new(clearing.center.x, 0.5f, clearing.center.y);
 
         for (int i = 0; i < count; i++)
         {
-            float angle = i * (360f / count);
+            float angle = prevCount * (360f / totalCount);
+            ++prevCount;
             Vector3 position = center + Quaternion.Euler(0, angle, 0) * Vector3.forward * radius;
 
-            var enemy = Instantiate(enemyPrefab[0], position, Quaternion.identity, parent);
+            var enemy = Instantiate(enemyPrefab[enemyType], position, Quaternion.identity, parent);
+            enemies.Add(enemy);
             if (enemy.TryGetComponent<UnitBase>(out var unit))
             {
                 unit.SetEnemy();
+                unit.SetDifficulty(difficulty);
+                unit.gameObject.SetActive(false);
             }
             else
             {
                 Debug.LogWarning($"Enemy prefab at {position} does not have UnitBase component!");
             }
         }
+
+        fogOfWarSystem.RegisterClearingEnemies(clearing, enemies);
     }
     #endregion
 

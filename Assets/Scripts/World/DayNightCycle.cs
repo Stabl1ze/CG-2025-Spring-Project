@@ -8,6 +8,8 @@ public class DayNightCycle : MonoBehaviour
     [Header("Time Settings")]
     [SerializeField] private float dayDurationInSeconds = 240f;
     [SerializeField] private float currentTimeOfDay = 0.3f;
+    [SerializeField] private int totalDays = 5;
+    private int currentDay = 0;
 
     [Header("Lighting Settings")]
     [SerializeField] private Light directionalLight;
@@ -17,11 +19,13 @@ public class DayNightCycle : MonoBehaviour
     [Header("UI Settings")]
     [SerializeField] private Slider timeSlider;
     [SerializeField] private TMP_Text timeText;
+    [SerializeField] private TMP_Text daysLeftText; 
     [SerializeField] private Image sliderFill;
     [SerializeField] private Gradient timeGradient;
 
     private bool isDaytime = true;
-    private readonly float dayProgress = 0f;
+    private float dayProgress = 0f;
+    private bool newDayStarted = false;
 
     private void Start()
     {
@@ -32,12 +36,22 @@ public class DayNightCycle : MonoBehaviour
 
         UpdateLighting();
         UpdateUI();
+        UpdateDaysLeftText();
     }
 
     private void Update()
     {
+        float previousTime = currentTimeOfDay;
         currentTimeOfDay += Time.deltaTime / dayDurationInSeconds;
         currentTimeOfDay %= 1f;
+
+        if (previousTime > currentTimeOfDay)
+        {
+            currentDay++;
+            newDayStarted = true;
+            UpdateDaysLeftText();
+            GameManager.Instance.CheckTimeLimit(currentDay, totalDays);
+        }
 
         bool newDaytime = currentTimeOfDay > 0.25f && currentTimeOfDay < 0.75f;
         if (newDaytime != isDaytime)
@@ -46,8 +60,20 @@ public class DayNightCycle : MonoBehaviour
             OnDayNightTransition();
         }
 
+        bool isNightTime = currentTimeOfDay < 0.2f || currentTimeOfDay > 0.8f;
+        UnitManager.Instance?.UpdateNightDebuff(isNightTime);
+
         UpdateLighting();
         UpdateUI();
+    }
+
+    private void UpdateDaysLeftText()
+    {
+        if (daysLeftText != null)
+        {
+            int daysLeft = totalDays - currentDay + 1;
+            daysLeftText.text = $"{daysLeft} Days Left";
+        }
     }
 
     private void UpdateLighting()

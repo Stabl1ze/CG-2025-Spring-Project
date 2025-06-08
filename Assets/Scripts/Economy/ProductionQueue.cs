@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using static ResourceManager;
 
 
 public class ProductionQueue : MonoBehaviour
@@ -13,13 +12,14 @@ public class ProductionQueue : MonoBehaviour
         public Sprite iconPrefab;
         public GameObject unitPrefab;
         public float productionTime;
-        public List<ResourcePack> costs = new();
+        public List<ResourceManager.ResourcePack> costs = new();
     }
 
     [SerializeField] private ProductionBuilding building;
     [SerializeField] private ProductionItem[] productionItems;
     [SerializeField] private int maxQueueSize = 5;
 
+    private Coroutine currentProductionCoroutine;
     private float currentProductionProgress = 0f;
     public float CurrentProductionProgress => currentProductionProgress;
     public float CurrentProductionTime => queue.Count > 0 ? queue.Peek().productionTime : 0f;
@@ -56,7 +56,7 @@ public class ProductionQueue : MonoBehaviour
 
         if (!isProducing)
         {
-            StartCoroutine(ProductionCoroutine());
+            currentProductionCoroutine = StartCoroutine(ProductionCoroutine());
         }
 
         OnQueueChanged?.Invoke();
@@ -98,6 +98,42 @@ public class ProductionQueue : MonoBehaviour
         }
 
         isProducing = false;
+        currentProductionCoroutine = null;
+    }
+
+    public bool CancelCurrentProduction()
+    {
+        if (!isProducing || queue.Count == 0) return false;
+
+        ProductionItem currentItem = queue.Peek();
+
+        foreach (var cost in currentItem.costs)
+        {
+            int refundAmount = Mathf.RoundToInt(cost.amount);
+            if (refundAmount > 0)
+            {
+                ResourceManager.Instance.AddResources(cost.type, refundAmount);
+            }
+        }
+
+        queue.Dequeue();
+
+        if (currentProductionCoroutine != null)
+        {
+            StopCoroutine(currentProductionCoroutine);
+            currentProductionCoroutine = null;
+        }
+
+        currentProductionProgress = 0f;
+        isProducing = false;
+
+        if (queue.Count > 0)
+        {
+            currentProductionCoroutine = StartCoroutine(ProductionCoroutine());
+        }
+
+        OnQueueChanged?.Invoke();
+        return true;
     }
 
     public int GetQueueCount()

@@ -16,8 +16,9 @@ public class EscUI : MonoBehaviour, IUIComponent
     public void Initialize()
     {
         backToMenuButton.onClick.AddListener(BackToMenu);
+        backToMenuButton.gameObject.SetActive(false);
         backToGameButton.onClick.AddListener(BackToGame);
-        quitGameButton.onClick.AddListener(QuitGame); // 修正了这里，之前错误地添加了BackToGame
+        quitGameButton.onClick.AddListener(QuitGame);
         escPanel?.SetActive(false);
     }
 
@@ -46,11 +47,13 @@ public class EscUI : MonoBehaviour, IUIComponent
 
     private void BackToMenu()
     {
+        StopAllCoroutines();
+
+        UnitManager.Instance.CleanUpUnits();
+
         if (GameManager.Instance != null)
             GameManager.Instance.ChangeGameState(GameManager.GameState.MainMenu);
         Time.timeScale = 1f;
-
-        Resources.UnloadUnusedAssets();
 
         AsyncOperation asyncLoad = SceneManager.LoadSceneAsync("MainMenu");
         asyncLoad.allowSceneActivation = true;
@@ -64,6 +67,8 @@ public class EscUI : MonoBehaviour, IUIComponent
 
             Debug.Log("Main menu loaded successfully");
         };
+
+        Resources.UnloadUnusedAssets();
 
         Hide();
     }

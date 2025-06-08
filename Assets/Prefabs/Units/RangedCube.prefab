@@ -261,8 +261,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d784ce4a6eae7064788dbc546aa1499a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  HP: 100
-  maxHP: 100
+  HP: 50
+  maxHP: 50
   isEnemy: 0
   healthBarAnchor: {fileID: 4100363617353071266}
   healthBarPrefab: {fileID: 1203199024698069861, guid: 96b92138cb5568a4db239b5cc9c827e2, type: 3}
@@ -270,11 +270,13 @@ MonoBehaviour:
   collisionLayerMask:
     serializedVersion: 2
     m_Bits: 896
-  attackRange: 5
+  baseAttackRange: 6
   attackCooldown: 1.5
-  attackDamage: 8
+  baseAttackDamage: 8
   projectilePrefab: {fileID: 4538714247857012, guid: 83cf8d49b0d101149b467175638884db, type: 3}
   firePoint: {fileID: 7659204168247418004}
+  nightRangeDebuff: 2
+  nightDamageDebuff: 2
   sensingRange: 10
 --- !u!135 &2515891955719707932
 SphereCollider:
@@ -295,7 +297,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.5
+  m_Radius: 0.7
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6663437852192852469
 GameObject:

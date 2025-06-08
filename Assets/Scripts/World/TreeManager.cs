@@ -18,13 +18,25 @@ public class TreeManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(this.gameObject);
+            Destroy(this);
         }
         else
         {
             Instance = this;
-            DontDestroyOnLoad(this.gameObject);
+            DontDestroyOnLoad(this);
         }
+    }
+
+    private void OnDestroy()
+    {
+        StopAllCoroutines();
+
+        treePositions.Clear();
+        treeNodes.Clear();
+        markedTreePositions.Clear();
+        markedTreeNodes.Clear();
+
+        treeMat.Clear();
     }
 
     public void SetTreeMaterials(TreeNode treeNode)

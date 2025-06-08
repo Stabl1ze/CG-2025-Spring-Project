@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Linq;
+using Unity.VisualScripting;
 
 public class BuildingManager : MonoBehaviour
 {
@@ -25,6 +25,8 @@ public class BuildingManager : MonoBehaviour
     public void RegisterBuilding(BuildingBase building)
     {
         OnBuildingConstructed?.Invoke(building);
+
+        if (building == null) return;
 
         if (!allBuildings.Contains(building))
             allBuildings.Add(building);

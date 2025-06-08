@@ -150,7 +150,10 @@ public class WorkerUnit : UnitBase
     {
         // Check if node depleted while moving
         if (currentResourceNode == null)
+        {
+            if (isChopping) FindNextTree();
             return;
+        }
         targetPosition = transform.position;
         isMoving = false;
         isCollecting = true;

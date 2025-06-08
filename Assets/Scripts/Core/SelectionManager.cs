@@ -65,4 +65,14 @@ public class SelectionManager : MonoBehaviour
             }
         }
     }
+
+    public void TypeSelect(UnitBase typeUnit)
+    {
+        var units = UnitManager.Instance.GetSameTypeFriendlyUnits(typeUnit);
+        foreach (var unit in units)
+        {
+            unit.OnSelect();
+            AddToSelection(unit);
+        }
+    }
 }
