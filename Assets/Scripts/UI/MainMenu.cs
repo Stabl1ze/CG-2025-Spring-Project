@@ -16,9 +16,12 @@ public class MainMenu : MonoBehaviour
 
     private void Awake()
     {
-        startButton.onClick.AddListener(OpenConfigPanel);
-        settingsButton.onClick.AddListener(OpenSettingsPanel);
-        quitButton.onClick.AddListener(QuitGame);
+        if(startButton != null)
+        {
+            startButton.onClick.AddListener(OpenConfigPanel);
+            settingsButton.onClick.AddListener(OpenSettingsPanel);
+            quitButton.onClick.AddListener(QuitGame);
+        }
     }
 
     private void PlayButtonSound()

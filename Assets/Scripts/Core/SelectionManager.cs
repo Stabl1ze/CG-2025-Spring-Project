@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class SelectionManager : MonoBehaviour
@@ -55,37 +54,25 @@ public class SelectionManager : MonoBehaviour
     public void BoxSelect(HashSet<ISelectable> selectablesInBox)
     {
         if (selectablesInBox.Count == 0) return;
-
-        // Count each type
-        int buildings = 0;
-        int units = 0;
-        int resources = 0;
-
+        
+        // Select all of the unit
         foreach (ISelectable selectable in selectablesInBox)
         {
-            if (selectable is BuildingBase) buildings++;
-            else if (selectable is UnitBase) units++;
-            else if (selectable is ResourceNode) resources++;
-        }
-
-        // Determine majority type
-        System.Type majorityType = null;
-        int maxCount = Mathf.Max(buildings, units, resources);
-
-        if (maxCount == buildings) majorityType = typeof(BuildingBase);
-        else if (maxCount == units) majorityType = typeof(UnitBase);
-        else if (maxCount == resources) majorityType = typeof(ResourceNode);
-
-        // Select all of the majority type
-        foreach (ISelectable selectable in selectablesInBox)
-        {
-            if ((majorityType == typeof(BuildingBase) && selectable is BuildingBase) ||
-                (majorityType == typeof(UnitBase) && selectable is UnitBase) ||
-                (majorityType == typeof(ResourceNode) && selectable is ResourceNode))
+            if (selectable is UnitBase)
             {
                 selectable.OnSelect();
                 AddToSelection(selectable);
             }
+        }
+    }
+
+    public void TypeSelect(UnitBase typeUnit)
+    {
+        var units = UnitManager.Instance.GetSameTypeFriendlyUnits(typeUnit);
+        foreach (var unit in units)
+        {
+            unit.OnSelect();
+            AddToSelection(unit);
         }
     }
 }

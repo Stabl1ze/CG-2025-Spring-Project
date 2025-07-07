@@ -1,16 +1,21 @@
 using UnityEngine;
 
-public class MeleeCube : UnitBase
+public class MeleeUnit : UnitBase
 {
     [Header("Melee Settings")]
     [SerializeField] private float attackRange = 1.5f;
-    [SerializeField] private float attackCooldown = 2f;
+    [SerializeField] private float attackTime = 0.8f;
+    [SerializeField] private float attackCooldown = 0.8f;
     [SerializeField] private int attackDamage = 10;
-    [SerializeField] private float attackRotationSpeed = 720f; // 每秒旋转度数
+    [SerializeField] private float attackRotationSpeed = 720f;
+
+    [Header("AI Settings")]
+    [SerializeField] private float sensingRange = 5f;
 
     private float lastAttackTime;
-    private GameObject attackTarget;
+    private GameObject attackTarget = null;
     private bool isAttacking = false;
+    private bool isMoveAttacking = false;
     private Quaternion originalRotation;
     private float attackProgress;
 
@@ -18,34 +23,32 @@ public class MeleeCube : UnitBase
     {
         base.Update();
 
+        if ((attackTarget == null && !isMoving) || isMoveAttacking)
+            FindNearestEnemy();
+
+        if (attackTarget != null && !isAttacking)
+            HandleAttackAI();
+
         if (isAttacking)
-        {
             HandleAttackAnimation();
-        }
         else if (attackTarget != null && !isMoving)
-        {
-            // 检查是否在攻击范围内
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
-            {
                 StartAttack();
-            }
-        }
     }
 
     public override void ReceiveCommand(Vector3 targetPosition, GameObject targetObject)
     {
-        if (isEnemy) return; // 自身是敌人则不响应命令
+        if (isEnemy) return;
 
-        // 重置攻击状态
-        isAttacking = false;
         attackTarget = null;
+        isAttacking = false;
+        isMoveAttacking = false;
 
-        if (targetObject != null)
+        if (targetObject == null) isMoveAttacking = true;
+        else
         {
-            // 检查目标是否是敌人
             bool targetIsEnemy = false;
 
-            // 只对UnitBase和BuildingBase进行判断
             var unitTarget = targetObject.GetComponent<UnitBase>();
             var buildingTarget = targetObject.GetComponent<BuildingBase>();
 
@@ -60,7 +63,6 @@ public class MeleeCube : UnitBase
 
             if (targetIsEnemy)
             {
-                // 攻击命令
                 attackTarget = targetObject;
                 this.targetPosition = GetAttackPosition(targetObject.transform.position);
                 isMoving = true;
@@ -68,13 +70,11 @@ public class MeleeCube : UnitBase
             }
         }
 
-        // 移动命令
         base.ReceiveCommand(targetPosition, targetObject);
     }
 
     protected override void MoveToTarget()
     {
-        // 到达目标位置后检查是否有攻击目标
         if (attackTarget != null)
         {
             if (Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
@@ -94,9 +94,8 @@ public class MeleeCube : UnitBase
 
     private Vector3 GetAttackPosition(Vector3 enemyPosition)
     {
-        // 计算攻击位置（敌人位置减去攻击方向乘以攻击距离）
         Vector3 attackDirection = (transform.position - enemyPosition).normalized;
-        return enemyPosition + attackDirection * (attackRange * 0.2f); // 稍微留点余地
+        return enemyPosition + attackDirection * (attackRange * 0.2f);
     }
 
     private void StartAttack()
@@ -112,13 +111,11 @@ public class MeleeCube : UnitBase
 
     private void HandleAttackAnimation()
     {
-        attackProgress += Time.deltaTime;
+        attackProgress += Time.deltaTime / 0.8f;
 
-        // 旋转攻击动画
-        float rotationAmount = attackRotationSpeed * Time.deltaTime;
+        float rotationAmount = attackRotationSpeed * Time.deltaTime / 0.8f;
         transform.Rotate(Vector3.up, rotationAmount);
 
-        // 动画完成
         if (attackProgress >= 1f)
         {
             CompleteAttack();
@@ -130,7 +127,6 @@ public class MeleeCube : UnitBase
         isAttacking = false;
         transform.rotation = originalRotation;
 
-        // 应用伤害
         if (attackTarget != null && Vector3.Distance(transform.position, attackTarget.transform.position) <= attackRange)
         {
             if (attackTarget.TryGetComponent<IDamageable>(out var damageable))
@@ -139,21 +135,69 @@ public class MeleeCube : UnitBase
             }
         }
 
-        // 如果目标仍然存在，继续攻击
         if (attackTarget != null)
         {
             StartAttack();
         }
     }
 
-    // 可视化攻击范围
-    protected override void OnDrawGizmosSelected()
+    private void HandleAttackAI()
     {
-        base.OnDrawGizmosSelected();
+        float distanceToTarget = Vector3.Distance(transform.position, attackTarget.transform.position);
 
-        if (!isSelected) return;
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        if (distanceToTarget <= attackRange)
+        {
+            StartAttack();
+        }
+        else if (distanceToTarget <= sensingRange)
+        {
+            targetPosition = GetAttackPosition(attackTarget.transform.position);
+            isMoving = true;
+        }
+        else
+        {
+            attackTarget = null;
+        }
     }
+
+    private void FindNearestEnemy()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, sensingRange);
+        float closestDistance = Mathf.Infinity;
+        GameObject closestEnemy = null;
+
+        foreach (var hitCollider in hitColliders)
+        {
+            if (IsValidEnemyTarget(hitCollider.gameObject, out var damageable))
+            {
+                float distance = Vector3.Distance(transform.position, hitCollider.transform.position);
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestEnemy = hitCollider.gameObject;
+                }
+            }
+        }
+
+        attackTarget = closestEnemy;
+    }
+
+    private bool IsValidEnemyTarget(GameObject target, out IDamageable damageable)
+    {
+        damageable = null;
+
+        if (!target.TryGetComponent<IDamageable>(out damageable))
+            return false;
+
+        var unit = target.GetComponent<UnitBase>();
+        if (unit != null && unit.IsEnemy == isEnemy)
+            return false;
+
+        var building = target.GetComponent<BuildingBase>();
+        if (building != null && building.IsEnemy == isEnemy)
+            return false;
+
+        return true;
+    }
+
 }

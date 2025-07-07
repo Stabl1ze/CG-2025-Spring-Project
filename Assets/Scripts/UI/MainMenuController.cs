@@ -58,10 +58,6 @@ public class MainMenuController : MonoBehaviour
 
     private IEnumerator StartGameRoutine()
     {
-        // 显示加载界面（如果有）
-        // loadingPanel.SetActive(true);
-
-        // 获取或创建WorldGenerator实例
         WorldGenerator worldGenerator = FindObjectOfType<WorldGenerator>();
         if (worldGenerator == null)
         {
@@ -69,7 +65,6 @@ public class MainMenuController : MonoBehaviour
             worldGenerator = generatorObj.AddComponent<WorldGenerator>();
         }
 
-        // 开始生成世界
         worldGenerator.GenerateNewWorld();
 
         yield return null;

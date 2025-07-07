@@ -9,8 +9,8 @@ public class ResourceNode : MonoBehaviour, ISelectable
     [SerializeField] protected int collectAmount = 2;
 
     [Header("Collision Settings")]
-    [SerializeField] protected float collisionRadius = 2.0f; // 碰撞半径
-    [SerializeField] protected LayerMask collisionLayerMask; // 需要检测碰撞的层
+    [SerializeField] protected float collisionRadius = 2.0f;
+    [SerializeField] protected LayerMask collisionLayerMask;
 
     // Selection visual
     protected GameObject selectionIndicator;
@@ -36,21 +36,23 @@ public class ResourceNode : MonoBehaviour, ISelectable
         collider.isTrigger = true;
     }
 
+    protected void OnDestroy()
+    {
+        DepleteNode();
+    }
+
     protected void OnTriggerStay(Collider other)
     {
         if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
             return;
 
-        // 提前获取碰撞半径 (避免重复计算)
         float otherRadius = GetOtherCollisionRadius(other);
         float totalRadius = collisionRadius + otherRadius;
 
-        // 计算水平方向向量 (忽略Y轴)
         Vector3 otherPos = other.transform.position;
         Vector3 myPos = transform.position;
         Vector3 direction = new Vector3(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
 
-        // 处理零向量情况
         if (direction.sqrMagnitude < 0.001f)
         {
             direction = Vector3.forward;
@@ -63,6 +65,7 @@ public class ResourceNode : MonoBehaviour, ISelectable
         {
             float overlap = totalRadius - distance;
             Vector3 pushVector = 0.5f * overlap * direction;
+            pushVector.y = 0;
             Rigidbody otherRb = other.attachedRigidbody;
             if (otherRb != null)
                 otherRb.position += pushVector;
@@ -76,10 +79,9 @@ public class ResourceNode : MonoBehaviour, ISelectable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
-        bool isPrevious = UIManager.Instance.resourceNodeUI.CurrentResourceNode == this;
-        if (UIManager.Instance != null && isPrevious)
+        if (UIManager.Instance != null)
         {
-            UIManager.Instance.UpdateResourceNodeDisplay(this);
+            UIManager.Instance.ShowResourceNodePanel(this);
         }
     }
 
@@ -137,10 +139,12 @@ public class ResourceNode : MonoBehaviour, ISelectable
     protected virtual void DepleteNode()
     {
         OnDeselect();
-        SelectionManager.Instance.DeselectThis(this);
+
+        if (SelectionManager.Instance != null)
+            SelectionManager.Instance.DeselectThis(this);
+
         if (gameObject != null)
             Destroy(gameObject);
-        Debug.Log($"{resourceType} node depleted");
     }
 
     protected void CreateCircleIndicator()

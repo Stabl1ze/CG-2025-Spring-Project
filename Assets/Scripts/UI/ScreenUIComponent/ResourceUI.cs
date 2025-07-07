@@ -35,13 +35,13 @@ public class ResourceUI : MonoBehaviour, IUIComponent
         switch (type)
         {
             case ResourceManager.ResourceType.LineR:
-                lineRText.text = $"{amount}/{maxCapacity}";
+                lineRText.text = $"Line: {amount}/{maxCapacity}";
                 break;
             case ResourceManager.ResourceType.FaceR:
-                faceRText.text = $"{amount}/{maxCapacity}";
+                faceRText.text = $"Face: {amount}/{maxCapacity}";
                 break;
             case ResourceManager.ResourceType.CubeR:
-                cubeRText.text = $"{amount}/{maxCapacity}";
+                cubeRText.text = $"Cube: {amount}/{maxCapacity}";
                 break;
         }
     }

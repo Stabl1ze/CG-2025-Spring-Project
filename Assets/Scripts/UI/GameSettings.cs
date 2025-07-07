@@ -58,7 +58,6 @@ public class GameSettings : MonoBehaviour
             Screen.SetResolution(width, height, fullscreenToggle.isOn);
         }
 
-        // 这里可以添加应用设置的逻辑
         Debug.Log("Settings applied and saved");
     }
     private void ResetSettings()

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.Experimental.GraphView;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -12,13 +12,14 @@ public class InputManager : MonoBehaviour
 
     [Header("Box Selection Settings")]
     [SerializeField] private Texture boxSelectionTexture;
-    [SerializeField] private Color boxSelectionColor = new Color(0.8f, 0.8f, 0.95f, 0.25f);
-    [SerializeField] private Color boxSelectionBorderColor = new Color(0.8f, 0.8f, 0.95f);
+    [SerializeField] private Color boxSelectionColor = new(0.8f, 0.8f, 0.95f, 0.25f);
+    [SerializeField] private Color boxSelectionBorderColor = new(0.8f, 0.8f, 0.95f);
 
     private Camera mainCamera;
     private float lastClickTime;
     private Vector3 boxSelectionStart;
     private bool isBoxSelecting;
+    public static bool IsInBuildMode { get; set; }
 
     private void Awake()
     {
@@ -36,12 +37,19 @@ public class InputManager : MonoBehaviour
         if (GameManager.Instance.CurrentGameState != GameManager.GameState.Playing)
             return;
 
+        if (IsInBuildMode) return;
+
         if (EventSystem.current.IsPointerOverGameObject())
             return;
 
         HandleSelectionInput();
         HandleCommandInput();
+        HandleF2Input();
+        HandleAttackInput();
         HandleBoxSelectionInput();
+        HandleMarkTreeInput();
+        HandleDeleteTreeInput();
+        HandelEscInput();
     }
 
     private void OnGUI()
@@ -51,7 +59,7 @@ public class InputManager : MonoBehaviour
 
     private void HandleSelectionInput()
     {
-        if (Input.GetMouseButtonDown(0)) // 左键点击
+        if (Input.GetMouseButtonDown(0))
         {
             // Cancel previous selection
             SelectionManager.Instance.DeselectAll();
@@ -69,7 +77,9 @@ public class InputManager : MonoBehaviour
                     {
                         if (timeSinceLastClick <= doubleClickTime)
                         {
-                            selectable.OnDoubleClick();
+                            var unit = hit.collider.GetComponentInParent<UnitBase>();
+                            if (unit != null)
+                                SelectionManager.Instance.TypeSelect(unit);
                         }
                         else
                         {
@@ -213,7 +223,7 @@ public class InputManager : MonoBehaviour
 
     private void HandleCommandInput()
     {
-        if (Input.GetMouseButtonDown(1)) // 右键命令
+        if (Input.GetMouseButtonDown(1))
         {
             if (SelectionManager.Instance.HasSelection())
             {
@@ -225,8 +235,66 @@ public class InputManager : MonoBehaviour
             }
             return;
         }
+    }
 
-        if (Input.GetKey(KeyCode.F))
+    private void HandleF2Input()
+    {
+        if (Input.GetKeyDown(KeyCode.F2))
+        {
+            SelectionManager.Instance.DeselectAll();
+            var fightingUnits = UnitManager.Instance.GetFightingUnits();
+            foreach (var unit in fightingUnits)
+            {
+                if (unit is ISelectable selectable)
+                {
+                    selectable.OnSelect();
+                    SelectionManager.Instance.AddToSelection(selectable);
+                }
+            }
+        }
+    }
+
+    private void HandleAttackInput()
+    {
+        if (Input.GetKeyDown(KeyCode.Z))
+        {
+            if (SelectionManager.Instance.HasSelection())
+            {
+                Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+                if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+                {
+                    // Use null for move-attack
+                    SelectionManager.Instance.IssueCommand(hit.point, null);
+                }
+            }
+        }
+    }
+
+    private void HandleMarkTreeInput()
+    {
+        if (Input.GetKey(KeyCode.F) || Input.GetKey(KeyCode.G))
+        {
+            bool mark = Input.GetKey(KeyCode.F); 
+            Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
+            {
+                if (hit.collider.CompareTag(selectableTag))
+                {
+                    var treeNode = hit.collider.GetComponentInParent<TreeNode>();
+                    if (treeNode != null) 
+                    {
+                        TreeManager.Instance.ToggleMarkTree(treeNode, treeNode.transform.position, mark);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // Test method
+    private void HandleDeleteTreeInput()
+    {
+        if (Input.GetKey(KeyCode.H))
         {
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity))
@@ -238,8 +306,24 @@ public class InputManager : MonoBehaviour
                     {
                         Destroy(tree.gameObject);
                     }
+                    var unit = hit.collider.GetComponentInParent<UnitBase>();
+                    if (unit != null)
+                    {
+                        Destroy(unit.gameObject);
+                    }
                 }
             }
+        }
+    }
+
+    private void HandelEscInput()
+    {
+        if(Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (!UIManager.Instance.escUI.IsActive)
+                UIManager.Instance.ShowEscPanel();
+            else
+                UIManager.Instance.HideEscPanel();
         }
     }
 }

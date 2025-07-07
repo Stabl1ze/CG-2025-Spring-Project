@@ -5,4 +5,6 @@ public interface IDamageable
     void UpdateHealthBar();
     float GetCurrentHP();
     float GetMaxHP();
+    void SetHP(float hp);
+    void SetMaxHP(float max);
 }

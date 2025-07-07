@@ -1,35 +1,78 @@
-using System.Collections.Generic;
+锘縰sing System.Collections.Generic;
 using UnityEngine;
 using static WorldGenerator;
 
 public class FogOfWarSystem : MonoBehaviour
 {
+    public static FogOfWarSystem Instance { get; private set; }
+
     [Header("Settings")]
     [SerializeField] private GameObject fogPrefab;
 
-    private List<FogRegion> fogRegions = new List<FogRegion>();
-    private List<Clearing> allClearings = new List<Clearing>();
+    private List<FogRegion> fogRegions = new();
+    private List<Clearing> allClearings = new();
+    private HashSet<Clearing> unrevealedClearings = new();
+    private Dictionary<Clearing, List<GameObject>> clearingResources = new();
+    private Dictionary<Clearing, List<GameObject>> clearingEnemies = new();
     private Vector2 spawnCenter;
     private float spawnRadius;
     private int mapSize;
-    private const float cellSize = 1f; // 固定网格大小为1
+    private const float cellSize = 1f;
 
-    // 存储所有可通行网格位置（初始化后只增不减）
-    private HashSet<Vector2Int> passableCells = new HashSet<Vector2Int>();
+    private HashSet<Vector2Int> passableCells = new();
+    private HashSet<FogRegion> revealedRegions = new();
 
-    // 存储已揭示的迷雾区域
-    private HashSet<FogRegion> revealedRegions = new HashSet<FogRegion>();
+    private bool allowUpdates = true;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+        }
+        else
+        {
+            Instance = this;
+        }
+    }
 
     private void Start()
     {
-        // 订阅砍树事件
         TreeManager.OnTreeRemoved += OnTreeRemoved;
+    }
+
+    private void Update()
+    {
+        if (GameManager.Instance?.CurrentGameState == GameManager.GameState.GameOver)
+            allowUpdates = false;
     }
 
     private void OnDestroy()
     {
-        // 取消订阅
         TreeManager.OnTreeRemoved -= OnTreeRemoved;
+
+        allowUpdates = false;
+
+        foreach (FogRegion fogRegion in fogRegions)
+            if (fogRegion != null)
+                fogRegion.ClearFogCover();
+        fogRegions.Clear();
+
+        foreach (var pair in clearingResources)
+            if (pair.Value != null)
+            {
+                foreach (var resourceNode in pair.Value)
+                    Destroy(resourceNode);
+                pair.Value.Clear();
+            }
+
+        foreach (var pair in clearingEnemies)
+            if (pair.Value != null)
+            {
+                foreach (var resourceNode in pair.Value)
+                    Destroy(resourceNode);
+                pair.Value.Clear();
+            }
     }
 
     public void Initialize(List<Clearing> clearings, Vector2 spawnCenter, float spawnRadius, int mapSize)
@@ -37,15 +80,16 @@ public class FogOfWarSystem : MonoBehaviour
         this.spawnCenter = spawnCenter;
         this.spawnRadius = spawnRadius;
         this.mapSize = mapSize;
-        this.allClearings = new List<Clearing>(clearings);
+        allClearings = new List<Clearing>(clearings);
 
-        // 初始化可通行网格
+        unrevealedClearings.Clear();
+        foreach (var clearing in clearings)
+            if (!clearing.isSpawn)
+                unrevealedClearings.Add(clearing);
+
         InitializePassableCells();
-
-        // 清理之前的迷雾区域
         ClearAllFogRegions();
 
-        // 为所有非初始地点空地创建迷雾
         foreach (var clearing in clearings)
         {
             if (!clearing.isSpawn)
@@ -64,7 +108,6 @@ public class FogOfWarSystem : MonoBehaviour
     {
         passableCells.Clear();
 
-        // 计算地图边界（假设地图以(0,0)为中心）
         int halfSize = mapSize / 2;
         for (int x = -halfSize; x <= halfSize; x++)
         {
@@ -73,7 +116,6 @@ public class FogOfWarSystem : MonoBehaviour
                 Vector2 worldPos = new Vector2(x, y);
                 Vector2Int gridPos = WorldToGrid(worldPos);
 
-                // 检查是否在任何空地内且没有树
                 if (IsInAnyClearing(worldPos) && !HasTreeAt(gridPos))
                 {
                     passableCells.Add(gridPos);
@@ -97,28 +139,56 @@ public class FogOfWarSystem : MonoBehaviour
 
     private void OnTreeRemoved(Vector2Int removedTreePosition)
     {
-        // 树被移除后，该位置变为可通行
+        if (!allowUpdates) return;
+
         passableCells.Add(removedTreePosition);
 
-        // 重新计算迷雾状态
         UpdateFogState();
+    }
+
+    public void RegisterClearingResources(Clearing clearing, List<GameObject> resources)
+    {
+        if (!clearingResources.ContainsKey(clearing))
+            clearingResources.Add(clearing, new List<GameObject>());
+        clearingResources[clearing].AddRange(resources);
+    }
+
+    public void RegisterClearingEnemies(Clearing clearing, List<GameObject> enemies)
+    {
+        if (!clearingEnemies.ContainsKey(clearing))
+            clearingEnemies.Add(clearing, new List<GameObject>());
+        clearingEnemies[clearing].AddRange(enemies);
+    }
+
+    private void ActiveClearing(Clearing clearing)
+    {
+        if (clearingResources.TryGetValue(clearing, out var resources))
+            foreach (var resource in resources)
+                if (resource != null)
+                    resource.SetActive(true);
+
+        if (clearingEnemies.TryGetValue(clearing, out var enemies))
+            foreach (var enemie in enemies)
+                if (enemie != null)
+                    enemie.SetActive(true);
     }
 
     private void UpdateFogState()
     {
-        // 执行全局洪水填充，获取所有可达位置
         HashSet<Vector2Int> reachableCells = PerformGlobalFloodFill();
 
         foreach (var fogRegion in fogRegions)
         {
-            // 跳过已揭示的区域
             if (revealedRegions.Contains(fogRegion)) continue;
 
-            // 检查该区域是否与出生点区域连通
             if (IsRegionConnected(fogRegion, reachableCells))
             {
                 fogRegion.SetRevealed(true);
                 revealedRegions.Add(fogRegion);
+
+                var clearing = FindClearingByCenter(fogRegion.Center);
+                if (clearing != null && unrevealedClearings.Remove(clearing))
+                    ActiveClearing(clearing);
             }
         }
     }
@@ -128,7 +198,6 @@ public class FogOfWarSystem : MonoBehaviour
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
 
-        // 添加出生点区域的所有可通行网格作为起点
         HashSet<Vector2Int> spawnGrids = GetGridsInCircle(spawnCenter, spawnRadius);
         foreach (var grid in spawnGrids)
         {
@@ -139,7 +208,6 @@ public class FogOfWarSystem : MonoBehaviour
             }
         }
 
-        // 洪水填充
         Vector2Int[] directions = {
             Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left
         };
@@ -165,10 +233,8 @@ public class FogOfWarSystem : MonoBehaviour
 
     private bool IsRegionConnected(FogRegion fogRegion, HashSet<Vector2Int> reachableCells)
     {
-        // 获取该迷雾区域覆盖的所有网格
         HashSet<Vector2Int> regionGrids = GetGridsInCircle(fogRegion.Center, fogRegion.Radius);
 
-        // 检查区域内的任何网格是否可达
         foreach (var grid in regionGrids)
         {
             if (reachableCells.Contains(grid))
@@ -184,7 +250,6 @@ public class FogOfWarSystem : MonoBehaviour
     {
         HashSet<Vector2Int> grids = new HashSet<Vector2Int>();
 
-        // 计算边界
         int minX = Mathf.FloorToInt((center.x - radius) / cellSize);
         int maxX = Mathf.CeilToInt((center.x + radius) / cellSize);
         int minY = Mathf.FloorToInt((center.y - radius) / cellSize);
@@ -222,6 +287,31 @@ public class FogOfWarSystem : MonoBehaviour
             }
         }
         return false;
+    }
+
+    public bool IsInUnrevealedClearing(Vector3 position)
+    {
+        Vector2 pos = new(position.x, position.z);
+        foreach (var clearing in unrevealedClearings)
+        {
+            if (Vector2.Distance(pos, clearing.center) <= clearing.radius)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Clearing FindClearingByCenter(Vector2 center)
+    {
+        foreach (var clearing in allClearings)
+        {
+            if (Vector2.Distance(clearing.center, center) < 0.1f)
+            {
+                return clearing;
+            }
+        }
+        return null;
     }
 
     private Vector2Int WorldToGrid(Vector2 worldPos)

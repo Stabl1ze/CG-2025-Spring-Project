@@ -5,15 +5,12 @@ using System;
 public class TreeManager : MonoBehaviour
 {
     public static TreeManager Instance { get; private set; }
-
-    // 事件：当树被砍伐时触发
     public static event Action<Vector2Int> OnTreeRemoved;
-
-    // 存储所有树木的位置（网格坐标）
     private HashSet<Vector2Int> treePositions = new();
-
-    // 存储树木ResourceNode的引用
-    private Dictionary<Vector2Int, ResourceNode> treeNodes = new();
+    private Dictionary<Vector2Int, TreeNode> treeNodes = new();
+    private HashSet<Vector2Int> markedTreePositions = new();
+    private Dictionary<Vector2Int, TreeNode> markedTreeNodes = new();
+    private List<Material> treeMat = new();
 
     private const float cellSize = 1f;
 
@@ -21,37 +18,54 @@ public class TreeManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(this.gameObject);
+            Destroy(this);
         }
         else
         {
             Instance = this;
-            DontDestroyOnLoad(this.gameObject);
+            DontDestroyOnLoad(this);
         }
     }
 
-    public void RegisterTree(ResourceNode treeNode, Vector3 worldPosition)
+    private void OnDestroy()
+    {
+        StopAllCoroutines();
+
+        treePositions.Clear();
+        treeNodes.Clear();
+        markedTreePositions.Clear();
+        markedTreeNodes.Clear();
+
+        treeMat.Clear();
+    }
+
+    public void SetTreeMaterials(TreeNode treeNode)
+    {
+        treeMat.Clear(); 
+        var renderers = treeNode.GetComponentsInChildren<Renderer>();
+        foreach (var renderer in renderers)
+            treeMat.Add(new Material(renderer.sharedMaterial));
+    }
+
+    public void RegisterTree(TreeNode treeNode, Vector3 worldPosition)
     {
         Vector2Int gridPos = WorldToGrid(new Vector2(worldPosition.x, worldPosition.z));
         treePositions.Add(gridPos);
         treeNodes[gridPos] = treeNode;
 
-        // 监听资源节点的销毁事件
         if (treeNode != null)
         {
-            // 通过检查对象是否被销毁来监听树木移除
             StartCoroutine(MonitorTreeNode(treeNode, gridPos));
         }
     }
 
-    private System.Collections.IEnumerator MonitorTreeNode(ResourceNode treeNode, Vector2Int gridPos)
+    private System.Collections.IEnumerator MonitorTreeNode(TreeNode treeNode, Vector2Int gridPos)
     {
         while (treeNode != null && treeNode.gameObject != null)
         {
             yield return new WaitForSeconds(0.1f);
         }
 
-        // 树木已被销毁
         OnTreeDestroyed(gridPos);
     }
 
@@ -61,15 +75,15 @@ public class TreeManager : MonoBehaviour
         {
             treePositions.Remove(gridPos);
             treeNodes.Remove(gridPos);
-            // 触发事件通知战争迷雾系统
             OnTreeRemoved?.Invoke(gridPos);
         }
-    }
 
-    public void RemoveTree(Vector3 worldPosition)
-    {
-        Vector2Int gridPos = WorldToGrid(new Vector2(worldPosition.x, worldPosition.z));
-        OnTreeDestroyed(gridPos);
+        gridPos.y -= 1; // Match with mark system
+        if (markedTreePositions.Contains(gridPos))
+        {
+            markedTreePositions.Remove(gridPos);
+            markedTreeNodes.Remove(gridPos);
+        }
     }
 
     public bool HasTreeAt(Vector2Int gridPosition)
@@ -82,20 +96,86 @@ public class TreeManager : MonoBehaviour
         return new HashSet<Vector2Int>(treePositions);
     }
 
-    public ResourceNode GetTreeNodeAt(Vector2Int gridPosition)
+    public TreeNode GetTreeNodeAt(Vector2Int gridPosition)
     {
-        treeNodes.TryGetValue(gridPosition, out ResourceNode node);
+        treeNodes.TryGetValue(gridPosition, out TreeNode node);
         return node;
     }
 
     public void ClearAllTrees()
     {
-        // 停止所有协程
         StopAllCoroutines();
 
         treePositions.Clear();
         treeNodes.Clear();
     }
+
+    #region Tree Mark System
+    public bool IsTreeMarked(Vector2Int gridPos)
+    {
+        return markedTreePositions.Contains(gridPos);
+    }
+
+    private void SetTreeColor(TreeNode treeNode, bool mark)
+    {
+        var renderers = treeNode.GetComponentsInChildren<Renderer>();
+        if (mark)
+            foreach (var renderer in renderers)
+                renderer.material.color = Color.yellow;
+        else
+            for (int i = 0; i < renderers.Length; ++i)
+                renderers[i].material = treeMat[i];
+    }
+
+    public void ToggleMarkTree(TreeNode treeNode, Vector3 worldPosition, bool mark)
+    {
+        Vector2Int gridPos = WorldToGrid(new Vector2(worldPosition.x, worldPosition.z));
+        if (mark)
+        {
+            if (!markedTreePositions.Contains(gridPos))
+            {
+                markedTreePositions.Add(gridPos);
+                markedTreeNodes[gridPos] = treeNode;
+                SetTreeColor(treeNode, mark);
+            }
+        }
+        else
+        {
+            if (markedTreePositions.Contains(gridPos))
+            {
+                markedTreePositions.Remove(gridPos);
+                markedTreeNodes.Remove(gridPos);
+                SetTreeColor(treeNode, mark);
+            }
+        }
+        // Debug.Log($"{treeNode} has be {mark}");
+    }
+
+    public TreeNode GetNearestMarkedTree(Vector3 position)
+    {
+        if (markedTreeNodes.Count == 0) return null;
+
+        TreeNode nearestNode = null;
+        float minDistance = float.MaxValue;
+        Vector2 pos = new(position.x, position.z);
+
+        foreach (var pair in markedTreeNodes)
+        {
+            if (pair.Value == null) continue;
+
+            Vector2 treePos = new(pair.Value.transform.position.x, pair.Value.transform.position.z);
+            float distance = Vector2.Distance(pos, treePos);
+
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                nearestNode = pair.Value;
+            }
+        }
+
+        return nearestNode;
+    }
+    #endregion
 
     private Vector2Int WorldToGrid(Vector2 worldPos)
     {

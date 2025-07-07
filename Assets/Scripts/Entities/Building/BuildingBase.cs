@@ -10,21 +10,25 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     [SerializeField] protected float HP = 100f;
     [SerializeField] protected float maxHP = 100f;
     [SerializeField] protected bool isEnemy = false;
+    [SerializeField] protected bool isDepot = false;
     [SerializeField] protected List<ResourcePack> costs = new();
     [SerializeField] protected float buildTime = 10f;
 
     [Header("Health Bar Settings")]
-    [SerializeField] private GameObject healthBarPrefab; // 血条预制件
-    [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0); // 向下偏移10像素
+    [SerializeField] private Transform healthBarAnchor;
+    [SerializeField] private GameObject healthBarPrefab;
 
     [Header("Collision Settings")]
-    [SerializeField] private float collisionRadius = 0.5f; // 单位碰撞半径
-    [SerializeField] private LayerMask collisionLayerMask; // 需要检测碰撞的层
+    [SerializeField] private float collisionRadius = 0.5f;
+    [SerializeField] private LayerMask collisionLayerMask;
 
-    // 血条实例
     private GameObject healthBarInstance;
     private Slider healthBarSlider;
-    private static Canvas uiCanvas; // 统一的UI画布
+    private static Canvas uiCanvas;
+
+    // Construction settings
+    private int requiredWorkers = 1;
+    private List<WorkerUnit> assignedWorkers = new();
 
     // Selection visual
     private GameObject selectionIndicator;
@@ -37,10 +41,11 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     protected float constructionProgress = 0f;
 
     public bool IsEnemy => isEnemy;
+    public bool IsBuilt => isBuilt;
+    public bool IsDepot => isDepot;
 
     protected virtual void Awake()
     {
-        // 初始化UI画布
         if (uiCanvas == null)
         {
             uiCanvas = GameObject.FindGameObjectWithTag("MainCanvas").GetComponent<Canvas>();
@@ -50,10 +55,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
             }
         }
 
-        // 创建血条
         CreateHealthBar();
-
-        // 设置选择指示器
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
 
@@ -83,7 +85,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
 
     protected virtual void OnDestroy()
     {
-        // 销毁建筑时同步销毁血条实例
         if (healthBarInstance != null)
         {
             Destroy(healthBarInstance);
@@ -95,20 +96,15 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         if ((collisionLayerMask.value & (1 << other.gameObject.layer)) == 0)
             return;
 
-        // 提前获取碰撞半径 (避免重复计算)
         float otherRadius = GetOtherCollisionRadius(other);
         float totalRadius = collisionRadius + otherRadius;
 
-        // 计算水平方向向量 (忽略Y轴)
         Vector3 otherPos = other.transform.position;
         Vector3 myPos = transform.position;
-        Vector3 direction = new Vector3(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
+        Vector3 direction = new(otherPos.x - myPos.x, 0, otherPos.z - myPos.z);
 
-        // 处理零向量情况
         if (direction.sqrMagnitude < 0.001f)
-        {
             direction = Vector3.forward;
-        }
 
         float distance = direction.magnitude;
         direction.Normalize();
@@ -117,6 +113,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         {
             float overlap = totalRadius - distance;
             Vector3 pushVector = 0.5f * overlap * direction;
+            pushVector.y = 0;
             Rigidbody otherRb = other.attachedRigidbody;
             if (otherRb != null)
                 otherRb.position += pushVector;
@@ -125,26 +122,10 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         }
     }
 
-    protected virtual void OnDrawGizmosSelected()
-    {
-        if (!isSelected) return;
-
-        var renderer = GetComponent<Renderer>();
-        if (renderer == null) return;
-
-        float bottomY = transform.position.y - renderer.bounds.extents.y;
-        Vector3 indicatorPos = new Vector3(
-            transform.position.x,
-            bottomY + indicatorHeightOffset,
-            transform.position.z
-        );
-
-        Gizmos.color = selectionColor;
-        Gizmos.DrawWireSphere(indicatorPos, indicatorRadius);
-    }
-
+    #region Construction Methods
     protected virtual void StartConstruction()
     {
+        if (isBuilt) return;
         HP = 0f;
         constructionProgress = 0f;
         ShowHealthBar(true);
@@ -154,7 +135,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     {
         if (constructionProgress < 1f)
         {
-            constructionProgress += Time.deltaTime / buildTime;
+            constructionProgress += Time.deltaTime * assignedWorkers.Count / buildTime;
             HP = Mathf.Lerp(0f, maxHP, constructionProgress);
             UpdateHealthBar();
             if (UIManager.Instance != null && UIManager.Instance.buildingUI.CurrentBuilding == this)
@@ -168,18 +149,33 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         }
     }
 
-    protected virtual void CompleteConstruction()
+    public virtual void CompleteConstruction()
     {
         isBuilt = true;
         HP = maxHP;
         UpdateHealthBar();
-        ShowHealthBar(false); // 建造完成后隐藏血条
+        ShowHealthBar(false);
+        BuildingManager.Instance?.RegisterBuilding(this);
+
+        // Release all workers
+        foreach (var worker in assignedWorkers.ToArray())
+        {
+            RemoveWorker(worker);
+        }
     }
 
-    public virtual bool IsBuilt()
+    public void AssignWorker(WorkerUnit worker)
     {
-        return isBuilt;
+        if (!assignedWorkers.Contains(worker))
+            assignedWorkers.Add(worker);
     }
+
+    public void RemoveWorker(WorkerUnit worker)
+    {
+        if (assignedWorkers.Contains(worker))
+            assignedWorkers.Remove(worker);
+    }
+    #endregion
 
     #region ISelectable Implementation
     public virtual void OnSelect()
@@ -226,8 +222,6 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     #region IDamageable Implementation
     public virtual void TakeDamage(float damage)
     {
-        if (!isBuilt) return;
-
         if (HP >= maxHP)
             HP = maxHP;
 
@@ -245,6 +239,7 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         {
             OnDeselect();
             SelectionManager.Instance.DeselectThis(this);
+            BuildingManager.Instance.OnBuildingDestroyed(this);
             Destroy(gameObject);
         }
     }
@@ -274,21 +269,30 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     {
         return maxHP;
     }
+
+    public void SetHP(float hp)
+    {
+        HP = hp;
+    }
+
+    public void SetMaxHP(float max)
+    {
+        maxHP = max;
+    }
     #endregion
 
-    // 创建血条实例
     private void CreateHealthBar()
     {
         if (healthBarPrefab == null || uiCanvas == null) return;
 
         healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarInstance.transform.SetAsFirstSibling();
         healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
 
         if (healthBarSlider != null)
         {
             healthBarSlider.maxValue = maxHP;
             healthBarSlider.value = HP >= maxHP ? maxHP : HP;
-            healthBarInstance.SetActive(true);
         }
         else
         {
@@ -299,14 +303,11 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
     private void UpdateHealthBarPosition()
     {
         if (healthBarInstance == null || healthBarSlider == null) return;
-
-        // 将世界坐标转换为屏幕坐标
-        Vector3 screenPosition = Camera.main.WorldToScreenPoint(transform.position);
-
-        // 应用偏移量
+        Vector3 screenPosition = Camera.main.WorldToScreenPoint(healthBarAnchor.position);
         RectTransform rectTransform = healthBarSlider.GetComponent<RectTransform>();
-        rectTransform.position = screenPosition + healthBarOffset;
+        rectTransform.position = screenPosition;
     }
+
 
     // Visualize selection
     private void CreateCircleIndicator()
@@ -351,13 +352,17 @@ public class BuildingBase : MonoBehaviour, ISelectable, ICommandable, IDamageabl
         var resource = other.GetComponent<ResourceNode>();
         if (resource != null) return resource.GetCollisionRadius();
 
-        return 1.0f; // 默认值
+        return 1.0f;
     }
 
-    // 获取碰撞半径
     public float GetCollisionRadius()
     {
         return collisionRadius;
     }
     #endregion
+
+    public List<ResourcePack> GetCosts()
+    {
+        return costs;
+    }
 }

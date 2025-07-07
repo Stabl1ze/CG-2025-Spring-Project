@@ -1,6 +1,6 @@
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 [RequireComponent(typeof(Outline))]
 public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
@@ -11,37 +11,37 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     [SerializeField] protected bool isEnemy = false;
 
     [Header("Health Bar Settings")]
+    [SerializeField] private Transform healthBarAnchor;
     [SerializeField] private GameObject healthBarPrefab;
-    [SerializeField] private Vector3 healthBarOffset = new(0, -40f, 0);
 
     [Header("Collision Settings")]
-    [SerializeField] private float collisionRadius = 1.5f; // 建筑碰撞半径
-    [SerializeField] private LayerMask collisionLayerMask; // 需要检测碰撞的层
+    [SerializeField] private float collisionRadius = 1.5f;
+    [SerializeField] private LayerMask collisionLayerMask;
 
-    // 血条实例
     private GameObject healthBarInstance;
     private Slider healthBarSlider;
-    private static Canvas uiCanvas; // 统一的UI画布
+    private static Canvas uiCanvas;
 
     // Move speed settings
     protected float moveSpeed = 5f;
     protected float rotationSpeed = 10f;
     
     // Selection visual
-    private GameObject selectionIndicator;
-    private Color selectionColor = Color.green;
-    private readonly float indicatorRadius = 1.0f;
-    private readonly float indicatorHeightOffset = 0.1f;
+    protected GameObject selectionIndicator;
+    protected Color selectionColor = Color.green;
+    protected Color enemyIndicatorColor = Color.red;
+    protected readonly float indicatorRadius = 1.0f;
+    protected readonly float indicatorHeightOffset = -0.2f;
 
     protected bool isSelected = false;
     protected bool isMoving = false;
     protected Vector3 targetPosition;
 
     public bool IsEnemy => isEnemy;
+    public event System.Action OnDestroyed;
 
     protected virtual void Awake()
     {
-        // 初始化UI画布
         if (uiCanvas == null)
         {
             uiCanvas = GameObject.FindGameObjectWithTag("MainCanvas").GetComponent<Canvas>();
@@ -51,10 +51,9 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
             }
         }
 
-        // 创建血条
         CreateHealthBar();
+        ShowHealthBar(false);
 
-        // 设置选择指示器
         CreateCircleIndicator();
         selectionIndicator.SetActive(false);
 
@@ -83,11 +82,14 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 
     protected virtual void OnDestroy()
     {
-        // 销毁建筑时同步销毁血条实例
+        if (isEnemy)
+            GameManager.Instance?.CheckEnemiesDefeated();
+
         if (healthBarInstance != null)
         {
             Destroy(healthBarInstance);
         }
+        OnDestroyed?.Invoke();
     }
 
     private void OnTriggerStay(Collider other)
@@ -109,7 +111,12 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (overlap > 0)
         {
             Vector3 pushVector = -0.5f * overlap * normalizedDirection;
-            transform.position += pushVector;
+            pushVector.y = 0;
+            if (other.gameObject.layer == LayerMask.NameToLayer("Buildings") 
+                || other.gameObject.layer == LayerMask.NameToLayer("Resources"))
+                transform.position += pushVector;
+            else
+                other.transform.position -= pushVector;
         }
     }
 
@@ -118,10 +125,10 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         Vector2 targetXY = new(targetPosition.x, targetPosition.z),
             transformXY = new(transform.position.x, transform.position.z);
         Vector3 direction = (targetPosition - transform.position).normalized;
-        direction.y = 0; // 保持Y轴不变
-        if (Vector3.Distance(targetXY, transformXY) > 0.5f)
+        direction.y = 0;
+        if (Vector2.Distance(targetXY, transformXY) > 0.5f)
         {
-            transform.position += direction * moveSpeed * Time.deltaTime;
+            transform.position += moveSpeed * Time.deltaTime * direction;
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
@@ -136,6 +143,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         isSelected = true;
         selectionIndicator.SetActive(true);
+        ShowHealthBar(true);
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ShowUnitPanel(this);
@@ -145,7 +153,9 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     public virtual void OnDeselect()
     {
         isSelected = false;
-        selectionIndicator.SetActive(false);
+        if (!isEnemy && selectionIndicator != null)
+            selectionIndicator.SetActive(false);
+        ShowHealthBar(false);
         if (UIManager.Instance != null)
         {
             UIManager.Instance.HideUnitPanel();
@@ -180,7 +190,8 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 
         HP -= damage;
         UpdateHealthBar();
-        ShowHealthBar(true); // 受伤时显示血条
+        ShowHealthBar(true);
+        StartCoroutine(HideHealthBarAfterDelay(3f));
 
         bool isPrevious = UIManager.Instance.unitUI.CurrentUnit == this;
         if (UIManager.Instance != null && isPrevious)
@@ -201,6 +212,7 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         if (healthBarSlider != null)
         {
             healthBarSlider.gameObject.SetActive(show);
+            healthBarInstance.transform.SetAsFirstSibling();
         }
     }
 
@@ -221,14 +233,23 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     {
         return maxHP;
     }
+    public void SetHP(float hp)
+    {
+        HP = hp;
+    }
+
+    public void SetMaxHP(float max)
+    {
+        maxHP = max;
+    }
     #endregion
 
-    // 创建血条实例
     private void CreateHealthBar()
     {
         if (healthBarPrefab == null || uiCanvas == null) return;
 
         healthBarInstance = Instantiate(healthBarPrefab, uiCanvas.transform);
+        healthBarInstance.transform.SetAsFirstSibling();
         healthBarSlider = healthBarInstance.GetComponentInChildren<Slider>();
 
         if (healthBarSlider != null)
@@ -246,42 +267,17 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
     private void UpdateHealthBarPosition()
     {
         if (healthBarInstance == null || healthBarSlider == null) return;
-
-        // 将世界坐标转换为屏幕坐标
-        Vector3 screenPosition = Camera.main.WorldToScreenPoint(transform.position);
-
-        // 应用偏移量
+        Vector3 screenPosition = Camera.main.WorldToScreenPoint(healthBarAnchor.position);
         RectTransform rectTransform = healthBarSlider.GetComponent<RectTransform>();
-        rectTransform.position = screenPosition + healthBarOffset;
-    }
-
-    // 在Scene视图中绘制Gizmos
-    protected virtual void OnDrawGizmosSelected()
-    {
-        if (!isSelected) return;
-
-        var renderer = GetComponent<Renderer>();
-        if (renderer == null) return;
-
-        float bottomY = transform.position.y - renderer.bounds.extents.y;
-        Vector3 indicatorPos = new Vector3(
-            transform.position.x,
-            bottomY + indicatorHeightOffset,
-            transform.position.z
-        );
-
-        Gizmos.color = selectionColor;
-        Gizmos.DrawWireSphere(indicatorPos, indicatorRadius);
+        rectTransform.position = screenPosition;
     }
 
     // Visualize selection
     private void CreateCircleIndicator()
     {
-        // 创建空游戏对象作为指示器父对象
         selectionIndicator = new GameObject("SelectionIndicator");
         selectionIndicator.transform.SetParent(transform);
 
-        // 计算位置（单位底部上方0.1f）
         var renderer = GetComponent<Renderer>();
         float bottomY = renderer != null ?
             (transform.position.y - renderer.bounds.extents.y) :
@@ -289,7 +285,6 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
 
         selectionIndicator.transform.localPosition = new Vector3(0, bottomY - transform.position.y + indicatorHeightOffset, 0);
 
-        // 创建圆形
         int segments = 32;
         LineRenderer lineRenderer = selectionIndicator.AddComponent<LineRenderer>();
         lineRenderer.useWorldSpace = false;
@@ -298,7 +293,6 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         lineRenderer.positionCount = segments + 1;
         lineRenderer.material = new Material(Shader.Find("Unlit/Color")) { color = selectionColor };
 
-        // 设置圆形顶点
         float angle = 0f;
         for (int i = 0; i < segments + 1; i++)
         {
@@ -306,6 +300,16 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
             float z = Mathf.Cos(Mathf.Deg2Rad * angle) * indicatorRadius;
             lineRenderer.SetPosition(i, new Vector3(x, 0, z));
             angle += 360f / segments;
+        }
+    }
+
+    private void SetEnemyIndicator()
+    {
+        if (selectionIndicator == null) return;
+        selectionIndicator.SetActive(true);
+        if (selectionIndicator.TryGetComponent<LineRenderer>(out var lineRenderer))
+        {
+            lineRenderer.material.color = enemyIndicatorColor;
         }
     }
 
@@ -321,13 +325,39 @@ public class UnitBase : MonoBehaviour, ISelectable, ICommandable, IDamageable
         var resource = other.GetComponent<ResourceNode>();
         if (resource != null) return resource.GetCollisionRadius();
 
-        return 1.0f; // 默认值
+        return 1.0f;
     }
 
-    // 获取碰撞半径
     public float GetCollisionRadius()
     {
         return collisionRadius;
     }
     #endregion
+
+    public void SetEnemy()
+    {
+        isEnemy = true;
+        SetEnemyIndicator();
+    }
+
+    public void SetDifficulty(int diff)
+    {
+        if (diff == 1)
+        {
+            maxHP *= 1.25f;
+            HP = maxHP;
+        }
+        else if (diff == 2)
+        {
+            maxHP *= 1.5f;
+            HP = maxHP;
+            moveSpeed *= 1.2f;
+        }
+    }
+
+    private IEnumerator HideHealthBarAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ShowHealthBar(false);
+    }
 }
